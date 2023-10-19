@@ -1,7 +1,7 @@
 # README - Georgia Tech Smoothing and Mapping Library
 ---
 
-## Adapted branche based on v4.2.0 for gnssFGO.
+## Adapted branch based on v4.2.0 for gnssFGO.
 
 ### Major changes:
 1. adding general factor information (attributes), e.g., name, ids
