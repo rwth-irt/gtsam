@@ -79,7 +79,7 @@ def initialize(data, truth, options):
     return isam, result, nextPoseIndex
 
 
-def step(data, isam, result, truth, currPoseIndex, isamArgs=()):
+def step(data, isam, result, truth, currPoseIndex):
     '''
     Do one step isam update
     @param[in] data: measurement data (odometry and visual measurements and their noiseModels)
@@ -123,7 +123,7 @@ def step(data, isam, result, truth, currPoseIndex, isamArgs=()):
 
     # Update ISAM
     # figure(1)tic
-    isam.update(newFactors, initialEstimates, *isamArgs)
+    isam.update(newFactors, initialEstimates)
     # t=toc plot(frame_i,t,'r.') tic
     newResult = isam.calculateEstimate()
     # t=toc plot(frame_i,t,'g.')

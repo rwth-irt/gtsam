@@ -8,34 +8,31 @@ See LICENSE for the license information
 CustomFactor unit tests.
 Author: Fan Jiang
 """
-import unittest
 from typing import List
+import unittest
+from gtsam import Values, Pose2, CustomFactor
 
 import numpy as np
-from gtsam.utils.test_case import GtsamTestCase
 
 import gtsam
-from gtsam import CustomFactor, Pose2, Values
+from gtsam.utils.test_case import GtsamTestCase
 
 
 class TestCustomFactor(GtsamTestCase):
-
     def test_new(self):
         """Test the creation of a new CustomFactor"""
 
-        def error_func(this: CustomFactor, v: gtsam.Values,
-                       H: List[np.ndarray]):
+        def error_func(this: CustomFactor, v: gtsam.Values, H: List[np.ndarray]):
             """Minimal error function stub"""
-            return np.array([1, 0, 0]), H
+            return np.array([1, 0, 0])
 
         noise_model = gtsam.noiseModel.Unit.Create(3)
-        cf = CustomFactor(noise_model, [0], error_func)
+        cf = CustomFactor(noise_model, gtsam.KeyVector([0]), error_func)
 
     def test_new_keylist(self):
         """Test the creation of a new CustomFactor"""
 
-        def error_func(this: CustomFactor, v: gtsam.Values,
-                       H: List[np.ndarray]):
+        def error_func(this: CustomFactor, v: gtsam.Values, H: List[np.ndarray]):
             """Minimal error function stub"""
             return np.array([1, 0, 0])
 
@@ -46,8 +43,7 @@ class TestCustomFactor(GtsamTestCase):
         """Test if calling the factor works (only error)"""
         expected_pose = Pose2(1, 1, 0)
 
-        def error_func(this: CustomFactor, v: gtsam.Values,
-                       H: List[np.ndarray]) -> np.ndarray:
+        def error_func(this: CustomFactor, v: gtsam.Values, H: List[np.ndarray]) -> np.ndarray:
             """Minimal error function with no Jacobian"""
             key0 = this.keys()[0]
             error = -v.atPose2(key0).localCoordinates(expected_pose)
@@ -69,8 +65,7 @@ class TestCustomFactor(GtsamTestCase):
 
         expected = Pose2(2, 2, np.pi / 2)
 
-        def error_func(this: CustomFactor, v: gtsam.Values,
-                       H: List[np.ndarray]):
+        def error_func(this: CustomFactor, v: gtsam.Values, H: List[np.ndarray]):
             """
             the custom error function. One can freely use variables captured
             from the outside scope. Or the variables can be acquired by indexing `v`.
@@ -89,7 +84,7 @@ class TestCustomFactor(GtsamTestCase):
             return error
 
         noise_model = gtsam.noiseModel.Unit.Create(3)
-        cf = CustomFactor(noise_model, [0, 1], error_func)
+        cf = CustomFactor(noise_model, gtsam.KeyVector([0, 1]), error_func)
         v = Values()
         v.insert(0, gT1)
         v.insert(1, gT2)
@@ -109,8 +104,7 @@ class TestCustomFactor(GtsamTestCase):
         gT1 = Pose2(1, 2, np.pi / 2)
         gT2 = Pose2(-1, 4, np.pi)
 
-        def error_func(this: CustomFactor, v: gtsam.Values,
-                       _: List[np.ndarray]):
+        def error_func(this: CustomFactor, v: gtsam.Values, _: List[np.ndarray]):
             """Minimal error function stub"""
             return np.array([1, 0, 0])
 
@@ -131,8 +125,7 @@ class TestCustomFactor(GtsamTestCase):
 
         expected = Pose2(2, 2, np.pi / 2)
 
-        def error_func(this: CustomFactor, v: gtsam.Values,
-                       H: List[np.ndarray]):
+        def error_func(this: CustomFactor, v: gtsam.Values, H: List[np.ndarray]):
             """
             Error function that mimics a BetweenFactor
             :param this: reference to the current CustomFactor being evaluated
@@ -145,8 +138,7 @@ class TestCustomFactor(GtsamTestCase):
             gT1, gT2 = v.atPose2(key0), v.atPose2(key1)
             error = expected.localCoordinates(gT1.between(gT2))
 
-            self.assertTrue(
-                H is None)  # Should be true if we only request the error
+            self.assertTrue(H is None)  # Should be true if we only request the error
 
             if H is not None:
                 result = gT1.between(gT2)
@@ -155,7 +147,7 @@ class TestCustomFactor(GtsamTestCase):
             return error
 
         noise_model = gtsam.noiseModel.Unit.Create(3)
-        cf = CustomFactor(noise_model, [0, 1], error_func)
+        cf = CustomFactor(noise_model, gtsam.KeyVector([0, 1]), error_func)
         v = Values()
         v.insert(0, gT1)
         v.insert(1, gT2)
@@ -173,8 +165,7 @@ class TestCustomFactor(GtsamTestCase):
 
         expected = Pose2(2, 2, np.pi / 2)
 
-        def error_func(this: CustomFactor, v: gtsam.Values,
-                       H: List[np.ndarray]):
+        def error_func(this: CustomFactor, v: gtsam.Values, H: List[np.ndarray]):
             """
             Error function that mimics a BetweenFactor
             :param this: reference to the current CustomFactor being evaluated

@@ -20,9 +20,10 @@
 #include <gtsam/base/debug.h>
 #include <gtsam/discrete/DiscreteConditional.h>
 #include <gtsam/discrete/Signature.h>
-#include <gtsam/hybrid/HybridValues.h>
+#include <gtsam/inference/Conditional-inst.h>
 
 #include <algorithm>
+#include <boost/make_shared.hpp>
 #include <random>
 #include <set>
 #include <stdexcept>
@@ -194,7 +195,7 @@ DiscreteConditional::shared_ptr DiscreteConditional::choose(
       dKeys.emplace_back(j, this->cardinality(j));
     }
   }
-  return std::make_shared<DiscreteConditional>(nrFrontals(), dKeys, adt);
+  return boost::make_shared<DiscreteConditional>(nrFrontals(), dKeys, adt);
 }
 
 /* ************************************************************************** */
@@ -219,7 +220,7 @@ DecisionTreeFactor::shared_ptr DiscreteConditional::likelihood(
   for (Key j : parents()) {
     discreteKeys.emplace_back(j, this->cardinality(j));
   }
-  return std::make_shared<DecisionTreeFactor>(discreteKeys, adt);
+  return boost::make_shared<DecisionTreeFactor>(discreteKeys, adt);
 }
 
 /* ****************************************************************************/
@@ -233,6 +234,57 @@ DecisionTreeFactor::shared_ptr DiscreteConditional::likelihood(
   values.emplace(keys_[0], frontal);
   return likelihood(values);
 }
+
+/* ************************************************************************** */
+#ifdef GTSAM_ALLOW_DEPRECATED_SINCE_V42
+void DiscreteConditional::solveInPlace(DiscreteValues* values) const {
+  ADT pFS = choose(*values, true);  // P(F|S=parentsValues)
+
+  // Initialize
+  DiscreteValues mpe;
+  double maxP = 0;
+
+  // Get all Possible Configurations
+  const auto allPosbValues = frontalAssignments();
+
+  // Find the maximum
+  for (const auto& frontalVals : allPosbValues) {
+    double pValueS = pFS(frontalVals);  // P(F=value|S=parentsValues)
+    // Update maximum solution if better
+    if (pValueS > maxP) {
+      maxP = pValueS;
+      mpe = frontalVals;
+    }
+  }
+
+  // set values (inPlace) to maximum
+  for (Key j : frontals()) {
+    (*values)[j] = mpe[j];
+  }
+}
+
+/* ************************************************************************** */
+size_t DiscreteConditional::solve(const DiscreteValues& parentsValues) const {
+  ADT pFS = choose(parentsValues, true);  // P(F|S=parentsValues)
+
+  // Then, find the max over all remaining
+  size_t max = 0;
+  double maxP = 0;
+  DiscreteValues frontals;
+  assert(nrFrontals() == 1);
+  Key j = (firstFrontalKey());
+  for (size_t value = 0; value < cardinality(j); value++) {
+    frontals[j] = value;
+    double pValueS = pFS(frontals); // P(F=value|S=parentsValues)
+    // Update solution if better
+    if (pValueS > maxP) {
+      maxP = pValueS;
+      max = value;
+    }
+  }
+  return max;
+}
+#endif
 
 /* ************************************************************************** */
 size_t DiscreteConditional::argmax() const {
@@ -266,7 +318,7 @@ void DiscreteConditional::sampleInPlace(DiscreteValues* values) const {
 size_t DiscreteConditional::sample(const DiscreteValues& parentsValues) const {
   static mt19937 rng(2);  // random number generator
 
-  // Get the correct conditional distribution
+  // Get the correct conditional density
   ADT pFS = choose(parentsValues, true);  // P(F|S=parentsValues)
 
   // TODO(Duy): only works for one key now, seems horribly slow this way
@@ -458,10 +510,6 @@ string DiscreteConditional::html(const KeyFormatter& keyFormatter,
   return ss.str();
 }
 
-/* ************************************************************************* */
-double DiscreteConditional::evaluate(const HybridValues& x) const{
-  return this->evaluate(x.discrete());
-}
 /* ************************************************************************* */
 
 }  // namespace gtsam

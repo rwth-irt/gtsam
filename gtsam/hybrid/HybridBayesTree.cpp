@@ -14,7 +14,7 @@
  * @brief   Hybrid Bayes Tree, the result of eliminating a
  * HybridJunctionTree
  * @date Mar 11, 2022
- * @author  Fan Jiang, Varun Agrawal
+ * @author  Fan Jiang
  */
 
 #include <gtsam/base/treeTraversal-inst.h>
@@ -49,7 +49,7 @@ HybridValues HybridBayesTree::optimize() const {
 
   // The root should be discrete only, we compute the MPE
   if (root_conditional->isDiscrete()) {
-    dbn.push_back(root_conditional->asDiscrete());
+    dbn.push_back(root_conditional->asDiscreteConditional());
     mpe = DiscreteFactorGraph(dbn).optimize();
   } else {
     throw std::runtime_error(
@@ -58,7 +58,7 @@ HybridValues HybridBayesTree::optimize() const {
   }
 
   VectorValues values = optimize(mpe);
-  return HybridValues(values, mpe);
+  return HybridValues(mpe, values);
 }
 
 /* ************************************************************************* */
@@ -73,8 +73,6 @@ struct HybridAssignmentData {
   GaussianBayesTree::sharedNode parentClique_;
   // The gaussian bayes tree that will be recursively created.
   GaussianBayesTree* gaussianbayesTree_;
-  // Flag indicating if all the nodes are valid. Used in optimize().
-  bool valid_;
 
   /**
    * @brief Construct a new Hybrid Assignment Data object.
@@ -85,13 +83,10 @@ struct HybridAssignmentData {
    */
   HybridAssignmentData(const DiscreteValues& assignment,
                        const GaussianBayesTree::sharedNode& parentClique,
-                       GaussianBayesTree* gbt, bool valid = true)
+                       GaussianBayesTree* gbt)
       : assignment_(assignment),
         parentClique_(parentClique),
-        gaussianbayesTree_(gbt),
-        valid_(valid) {}
-
-  bool isValid() const { return valid_; }
+        gaussianbayesTree_(gbt) {}
 
   /**
    * @brief A function used during tree traversal that operates on each node
@@ -106,7 +101,6 @@ struct HybridAssignmentData {
       HybridAssignmentData& parentData) {
     // Extract the gaussian conditional from the Hybrid clique
     HybridConditional::shared_ptr hybrid_conditional = node->conditional();
-
     GaussianConditional::shared_ptr conditional;
     if (hybrid_conditional->isHybrid()) {
       conditional = (*hybrid_conditional->asMixture())(parentData.assignment_);
@@ -114,32 +108,25 @@ struct HybridAssignmentData {
       conditional = hybrid_conditional->asGaussian();
     } else {
       // Discrete only conditional, so we set to empty gaussian conditional
-      conditional = std::make_shared<GaussianConditional>();
+      conditional = boost::make_shared<GaussianConditional>();
     }
 
-    GaussianBayesTree::sharedNode clique;
-    if (conditional) {
-      // Create the GaussianClique for the current node
-      clique = std::make_shared<GaussianBayesTree::Node>(conditional);
-      // Add the current clique to the GaussianBayesTree.
-      parentData.gaussianbayesTree_->addClique(clique,
-                                               parentData.parentClique_);
-    } else {
-      parentData.valid_ = false;
-    }
+    // Create the GaussianClique for the current node
+    auto clique = boost::make_shared<GaussianBayesTree::Node>(conditional);
+    // Add the current clique to the GaussianBayesTree.
+    parentData.gaussianbayesTree_->addClique(clique, parentData.parentClique_);
 
     // Create new HybridAssignmentData where the current node is the parent
     // This will be passed down to the children nodes
     HybridAssignmentData data(parentData.assignment_, clique,
-                              parentData.gaussianbayesTree_, parentData.valid_);
+                              parentData.gaussianbayesTree_);
     return data;
   }
 };
 
 /* *************************************************************************
  */
-GaussianBayesTree HybridBayesTree::choose(
-    const DiscreteValues& assignment) const {
+VectorValues HybridBayesTree::optimize(const DiscreteValues& assignment) const {
   GaussianBayesTree gbt;
   HybridAssignmentData rootData(assignment, 0, &gbt);
   {
@@ -151,20 +138,6 @@ GaussianBayesTree HybridBayesTree::choose(
         visitorPost);
   }
 
-  if (!rootData.isValid()) {
-    return GaussianBayesTree();
-  }
-  return gbt;
-}
-
-/* *************************************************************************
- */
-VectorValues HybridBayesTree::optimize(const DiscreteValues& assignment) const {
-  GaussianBayesTree gbt = this->choose(assignment);
-  // If empty GaussianBayesTree, means a clique is pruned hence invalid
-  if (gbt.size() == 0) {
-    return VectorValues();
-  }
   VectorValues result = gbt.optimize();
 
   // Return the optimized bayes net result.
@@ -173,18 +146,19 @@ VectorValues HybridBayesTree::optimize(const DiscreteValues& assignment) const {
 
 /* ************************************************************************* */
 void HybridBayesTree::prune(const size_t maxNrLeaves) {
-  auto discreteProbs = this->roots_.at(0)->conditional()->asDiscrete();
+  auto decisionTree =
+      this->roots_.at(0)->conditional()->asDiscreteConditional();
 
-  DecisionTreeFactor prunedDiscreteProbs = discreteProbs->prune(maxNrLeaves);
-  discreteProbs->root_ = prunedDiscreteProbs.root_;
+  DecisionTreeFactor prunedDecisionTree = decisionTree->prune(maxNrLeaves);
+  decisionTree->root_ = prunedDecisionTree.root_;
 
   /// Helper struct for pruning the hybrid bayes tree.
   struct HybridPrunerData {
     /// The discrete decision tree after pruning.
-    DecisionTreeFactor prunedDiscreteProbs;
-    HybridPrunerData(const DecisionTreeFactor& prunedDiscreteProbs,
+    DecisionTreeFactor prunedDecisionTree;
+    HybridPrunerData(const DecisionTreeFactor& prunedDecisionTree,
                      const HybridBayesTree::sharedNode& parentClique)
-        : prunedDiscreteProbs(prunedDiscreteProbs) {}
+        : prunedDecisionTree(prunedDecisionTree) {}
 
     /**
      * @brief A function used during tree traversal that operates on each node
@@ -204,13 +178,13 @@ void HybridBayesTree::prune(const size_t maxNrLeaves) {
       if (conditional->isHybrid()) {
         auto gaussianMixture = conditional->asMixture();
 
-        gaussianMixture->prune(parentData.prunedDiscreteProbs);
+        gaussianMixture->prune(parentData.prunedDecisionTree);
       }
       return parentData;
     }
   };
 
-  HybridPrunerData rootData(prunedDiscreteProbs, 0);
+  HybridPrunerData rootData(prunedDecisionTree, 0);
   {
     treeTraversal::no_op visitorPost;
     // Limits OpenMP threads since we're mixing TBB and OpenMP

@@ -75,7 +75,7 @@ class EvaluationFactor : public FunctorizedFactor<double, Vector> {
 };
 
 /**
- * Unary factor for enforcing BASIS polynomial evaluation on a parameter Matrix
+ * Unary factor for enforcing BASIS polynomial evaluation on a ParameterMatrix
  * of size (M, N) is equal to a vector-valued measurement at the same point,
  when
  * using a pseudo-spectral parameterization.
@@ -87,13 +87,15 @@ class EvaluationFactor : public FunctorizedFactor<double, Vector> {
  * measurement prediction function.
  *
  * @param BASIS: The basis class to use e.g. Chebyshev2
+ * @param M: Size of the evaluated state vector.
  *
  * @ingroup basis
  */
-template <class BASIS>
-class VectorEvaluationFactor : public FunctorizedFactor<Vector, Matrix> {
+template <class BASIS, int M>
+class VectorEvaluationFactor
+    : public FunctorizedFactor<Vector, ParameterMatrix<M>> {
  private:
-  using Base = FunctorizedFactor<Vector, Matrix>;
+  using Base = FunctorizedFactor<Vector, ParameterMatrix<M>>;
 
  public:
   VectorEvaluationFactor() {}
@@ -101,43 +103,42 @@ class VectorEvaluationFactor : public FunctorizedFactor<Vector, Matrix> {
   /**
    * @brief Construct a new VectorEvaluationFactor object.
    *
-   * @param key The key to the parameter Matrix object used to represent the
+   * @param key The key to the ParameterMatrix object used to represent the
    * polynomial.
    * @param z The measurement value.
    * @param model The noise model.
-   * @param M Size of the evaluated state vector.
    * @param N The degree of the polynomial.
    * @param x The point at which to evaluate the basis polynomial.
    */
   VectorEvaluationFactor(Key key, const Vector &z,
-                         const SharedNoiseModel &model, const size_t M,
-                         const size_t N, double x)
-      : Base(key, z, model, typename BASIS::VectorEvaluationFunctor(M, N, x)) {}
+                         const SharedNoiseModel &model, const size_t N,
+                         double x)
+      : Base(key, z, model,
+             typename BASIS::template VectorEvaluationFunctor<M>(N, x)) {}
 
   /**
    * @brief Construct a new VectorEvaluationFactor object.
    *
-   * @param key The key to the parameter Matrix object used to represent the
+   * @param key The key to the ParameterMatrix object used to represent the
    * polynomial.
    * @param z The measurement value.
    * @param model The noise model.
-   * @param M Size of the evaluated state vector.
    * @param N The degree of the polynomial.
    * @param x The point at which to evaluate the basis polynomial.
    * @param a Lower bound for the polynomial.
    * @param b Upper bound for the polynomial.
    */
   VectorEvaluationFactor(Key key, const Vector &z,
-                         const SharedNoiseModel &model, const size_t M,
-                         const size_t N, double x, double a, double b)
+                         const SharedNoiseModel &model, const size_t N,
+                         double x, double a, double b)
       : Base(key, z, model,
-             typename BASIS::VectorEvaluationFunctor(M, N, x, a, b)) {}
+             typename BASIS::template VectorEvaluationFunctor<M>(N, x, a, b)) {}
 
   virtual ~VectorEvaluationFactor() {}
 };
 
 /**
- * Unary factor for enforcing BASIS polynomial evaluation on a parameter Matrix
+ * Unary factor for enforcing BASIS polynomial evaluation on a ParameterMatrix
  * of size (P, N) is equal to specified measurement at the same point, when
  * using a pseudo-spectral parameterization.
  *
@@ -146,18 +147,20 @@ class VectorEvaluationFactor : public FunctorizedFactor<Vector, Matrix> {
  * indexed by `i`.
  *
  * @param BASIS: The basis class to use e.g. Chebyshev2
+ * @param P: Size of the fixed-size vector.
  *
  * Example:
- *  VectorComponentFactor<BASIS> controlPrior(key, measured, model,
- *                                            N, i, t, a, b);
+ *  VectorComponentFactor<BASIS, P> controlPrior(key, measured, model,
+ *                                               N, i, t, a, b);
  *  where N is the degree and i is the component index.
  *
  * @ingroup basis
  */
-template <class BASIS>
-class VectorComponentFactor : public FunctorizedFactor<double, Matrix> {
+template <class BASIS, size_t P>
+class VectorComponentFactor
+    : public FunctorizedFactor<double, ParameterMatrix<P>> {
  private:
-  using Base = FunctorizedFactor<double, Matrix>;
+  using Base = FunctorizedFactor<double, ParameterMatrix<P>>;
 
  public:
   VectorComponentFactor() {}
@@ -165,31 +168,29 @@ class VectorComponentFactor : public FunctorizedFactor<double, Matrix> {
   /**
    * @brief Construct a new VectorComponentFactor object.
    *
-   * @param key The key to the parameter Matrix object used to represent the
+   * @param key The key to the ParameterMatrix object used to represent the
    * polynomial.
    * @param z The scalar value at a specified index `i` of the full measurement
    * vector.
    * @param model The noise model.
-   * @param P Size of the fixed-size vector.
    * @param N The degree of the polynomial.
    * @param i The index for the evaluated vector to give us the desired scalar
    * value.
    * @param x The point at which to evaluate the basis polynomial.
    */
   VectorComponentFactor(Key key, const double &z, const SharedNoiseModel &model,
-                        const size_t P, const size_t N, size_t i, double x)
+                        const size_t N, size_t i, double x)
       : Base(key, z, model,
-             typename BASIS::VectorComponentFunctor(P, N, i, x)) {}
+             typename BASIS::template VectorComponentFunctor<P>(N, i, x)) {}
 
   /**
    * @brief Construct a new VectorComponentFactor object.
    *
-   * @param key The key to the parameter Matrix object used to represent the
+   * @param key The key to the ParameterMatrix object used to represent the
    * polynomial.
    * @param z The scalar value at a specified index `i` of the full measurement
    * vector.
    * @param model The noise model.
-   * @param P Size of the fixed-size vector.
    * @param N The degree of the polynomial.
    * @param i The index for the evaluated vector to give us the desired scalar
    * value.
@@ -198,10 +199,11 @@ class VectorComponentFactor : public FunctorizedFactor<double, Matrix> {
    * @param b Upper bound for the polynomial.
    */
   VectorComponentFactor(Key key, const double &z, const SharedNoiseModel &model,
-                        const size_t P, const size_t N, size_t i, double x,
-                        double a, double b)
-      : Base(key, z, model,
-             typename BASIS::VectorComponentFunctor(P, N, i, x, a, b)) {}
+                        const size_t N, size_t i, double x, double a, double b)
+      : Base(
+            key, z, model,
+            typename BASIS::template VectorComponentFunctor<P>(N, i, x, a, b)) {
+  }
 
   virtual ~VectorComponentFactor() {}
 };
@@ -224,9 +226,10 @@ class VectorComponentFactor : public FunctorizedFactor<double, Matrix> {
  * where `x` is the value (e.g. timestep) at which the rotation was evaluated.
  */
 template <class BASIS, typename T>
-class ManifoldEvaluationFactor : public FunctorizedFactor<T, Matrix> {
+class ManifoldEvaluationFactor
+    : public FunctorizedFactor<T, ParameterMatrix<traits<T>::dimension>> {
  private:
-  using Base = FunctorizedFactor<T, Matrix>;
+  using Base = FunctorizedFactor<T, ParameterMatrix<traits<T>::dimension>>;
 
  public:
   ManifoldEvaluationFactor() {}
@@ -286,7 +289,7 @@ class DerivativeFactor
   /**
    * @brief Construct a new DerivativeFactor object.
    *
-   * @param key The key to the parameter Matrix which represents the basis
+   * @param key The key to the ParameterMatrix which represents the basis
    * polynomial.
    * @param z The measurement value.
    * @param model The noise model.
@@ -300,7 +303,7 @@ class DerivativeFactor
   /**
    * @brief Construct a new DerivativeFactor object.
    *
-   * @param key The key to the parameter Matrix which represents the basis
+   * @param key The key to the ParameterMatrix which represents the basis
    * polynomial.
    * @param z The measurement value.
    * @param model The noise model.
@@ -321,12 +324,14 @@ class DerivativeFactor
  * polynomial at a specified point `x` is equal to the vector value `z`.
  *
  * @param BASIS: The basis class to use e.g. Chebyshev2
+ * @param M: Size of the evaluated state vector derivative.
  */
-template <class BASIS>
-class VectorDerivativeFactor : public FunctorizedFactor<Vector, Matrix> {
+template <class BASIS, int M>
+class VectorDerivativeFactor
+    : public FunctorizedFactor<Vector, ParameterMatrix<M>> {
  private:
-  using Base = FunctorizedFactor<Vector, Matrix>;
-  using Func = typename BASIS::VectorDerivativeFunctor;
+  using Base = FunctorizedFactor<Vector, ParameterMatrix<M>>;
+  using Func = typename BASIS::template VectorDerivativeFunctor<M>;
 
  public:
   VectorDerivativeFactor() {}
@@ -334,36 +339,34 @@ class VectorDerivativeFactor : public FunctorizedFactor<Vector, Matrix> {
   /**
    * @brief Construct a new VectorDerivativeFactor object.
    *
-   * @param key The key to the parameter Matrix which represents the basis
+   * @param key The key to the ParameterMatrix which represents the basis
    * polynomial.
    * @param z The measurement value.
    * @param model The noise model.
-   * @param M Size of the evaluated state vector derivative.
    * @param N The degree of the polynomial.
    * @param x The point at which to evaluate the basis polynomial.
    */
   VectorDerivativeFactor(Key key, const Vector &z,
-                         const SharedNoiseModel &model, const size_t M,
-                         const size_t N, double x)
-      : Base(key, z, model, Func(M, N, x)) {}
+                         const SharedNoiseModel &model, const size_t N,
+                         double x)
+      : Base(key, z, model, Func(N, x)) {}
 
   /**
    * @brief Construct a new VectorDerivativeFactor object.
    *
-   * @param key The key to the parameter Matrix which represents the basis
+   * @param key The key to the ParameterMatrix which represents the basis
    * polynomial.
    * @param z The measurement value.
    * @param model The noise model.
-   * @param M Size of the evaluated state vector derivative.
    * @param N The degree of the polynomial.
    * @param x The point at which to evaluate the basis polynomial.
    * @param a Lower bound for the polynomial.
    * @param b Upper bound for the polynomial.
    */
   VectorDerivativeFactor(Key key, const Vector &z,
-                         const SharedNoiseModel &model, const size_t M,
-                         const size_t N, double x, double a, double b)
-      : Base(key, z, model, Func(M, N, x, a, b)) {}
+                         const SharedNoiseModel &model, const size_t N,
+                         double x, double a, double b)
+      : Base(key, z, model, Func(N, x, a, b)) {}
 
   virtual ~VectorDerivativeFactor() {}
 };
@@ -374,12 +377,14 @@ class VectorDerivativeFactor : public FunctorizedFactor<Vector, Matrix> {
  * vector-valued measurement `z`.
  *
  * @param BASIS: The basis class to use e.g. Chebyshev2
+ * @param P: Size of the control component derivative.
  */
-template <class BASIS>
-class ComponentDerivativeFactor : public FunctorizedFactor<double, Matrix> {
+template <class BASIS, int P>
+class ComponentDerivativeFactor
+    : public FunctorizedFactor<double, ParameterMatrix<P>> {
  private:
-  using Base = FunctorizedFactor<double, Matrix>;
-  using Func = typename BASIS::ComponentDerivativeFunctor;
+  using Base = FunctorizedFactor<double, ParameterMatrix<P>>;
+  using Func = typename BASIS::template ComponentDerivativeFunctor<P>;
 
  public:
   ComponentDerivativeFactor() {}
@@ -387,31 +392,29 @@ class ComponentDerivativeFactor : public FunctorizedFactor<double, Matrix> {
   /**
    * @brief Construct a new ComponentDerivativeFactor object.
    *
-   * @param key The key to the parameter Matrix which represents the basis
+   * @param key The key to the ParameterMatrix which represents the basis
    * polynomial.
    * @param z The scalar measurement value at a specific index `i` of the full
    * measurement vector.
    * @param model The degree of the polynomial.
-   * @param P: Size of the control component derivative.
    * @param N The degree of the polynomial.
    * @param i The index for the evaluated vector to give us the desired scalar
    * value.
    * @param x The point at which to evaluate the basis polynomial.
    */
   ComponentDerivativeFactor(Key key, const double &z,
-                            const SharedNoiseModel &model, const size_t P,
-                            const size_t N, size_t i, double x)
-      : Base(key, z, model, Func(P, N, i, x)) {}
+                            const SharedNoiseModel &model, const size_t N,
+                            size_t i, double x)
+      : Base(key, z, model, Func(N, i, x)) {}
 
   /**
    * @brief Construct a new ComponentDerivativeFactor object.
    *
-   * @param key The key to the parameter Matrix which represents the basis
+   * @param key The key to the ParameterMatrix which represents the basis
    * polynomial.
    * @param z The scalar measurement value at a specific index `i` of the full
    * measurement vector.
    * @param model The degree of the polynomial.
-   * @param P: Size of the control component derivative.
    * @param N The degree of the polynomial.
    * @param i The index for the evaluated vector to give us the desired scalar
    * value.
@@ -420,10 +423,9 @@ class ComponentDerivativeFactor : public FunctorizedFactor<double, Matrix> {
    * @param b Upper bound for the polynomial.
    */
   ComponentDerivativeFactor(Key key, const double &z,
-                            const SharedNoiseModel &model, const size_t P,
-                            const size_t N, size_t i, double x, double a,
-                            double b)
-      : Base(key, z, model, Func(P, N, i, x, a, b)) {}
+                            const SharedNoiseModel &model, const size_t N,
+                            size_t i, double x, double a, double b)
+      : Base(key, z, model, Func(N, i, x, a, b)) {}
 
   virtual ~ComponentDerivativeFactor() {}
 };

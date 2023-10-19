@@ -8,6 +8,8 @@
 #include <gtsam_unstable/discrete/CSP.h>
 #include <gtsam_unstable/discrete/Domain.h>
 
+#include <boost/assign/std/map.hpp>
+using boost::assign::insert;
 #include <CppUnitLite/TestHarness.h>
 
 #include <fstream>
@@ -131,7 +133,8 @@ TEST(CSP, allInOne) {
 
   // Solve
   auto mpe = csp.optimize();
-  DiscreteValues expected {{ID.first, 1}, {UT.first, 0}, {AZ.first, 1}};
+  DiscreteValues expected;
+  insert(expected)(ID.first, 1)(UT.first, 0)(AZ.first, 1);
   EXPECT(assert_equal(expected, mpe));
   EXPECT_DOUBLES_EQUAL(1, csp(mpe), 1e-9);
 }
@@ -169,11 +172,13 @@ TEST(CSP, WesternUS) {
   csp.addAllDiff(WY, CO);
   csp.addAllDiff(CO, NM);
 
-  DiscreteValues mpe{{0, 2}, {1, 3}, {2, 2}, {3, 1}, {4, 1}, {5, 3},
-                     {6, 3}, {7, 2}, {8, 0}, {9, 1}, {10, 0}};
+  DiscreteValues mpe;
+  insert(mpe)(0, 2)(1, 3)(2, 2)(3, 1)(4, 1)(5, 3)(6, 3)(7, 2)(8, 0)(9, 1)(10, 0);
 
   // Create ordering according to example in ND-CSP.lyx
-  const Ordering ordering{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+  Ordering ordering;
+  ordering += Key(0), Key(1), Key(2), Key(3), Key(4), Key(5), Key(6), Key(7),
+      Key(8), Key(9), Key(10);
 
   // Solve using that ordering:
   auto actualMPE = csp.optimize(ordering);
@@ -219,7 +224,8 @@ TEST(CSP, ArcConsistency) {
 
   // Solve
   auto mpe = csp.optimize();
-  DiscreteValues expected {{ID.first, 1}, {UT.first, 0}, {AZ.first, 2}};
+  DiscreteValues expected;
+  insert(expected)(ID.first, 1)(UT.first, 0)(AZ.first, 2);
   EXPECT(assert_equal(expected, mpe));
   EXPECT_DOUBLES_EQUAL(1, csp(mpe), 1e-9);
 

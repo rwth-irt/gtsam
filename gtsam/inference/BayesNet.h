@@ -20,12 +20,10 @@
 
 #include <gtsam/inference/FactorGraph.h>
 
-#include <memory>
+#include <boost/shared_ptr.hpp>
 #include <string>
 
 namespace gtsam {
-
-class HybridValues;
 
 /**
  * A BayesNet is a tree of conditionals, stored in elimination order.
@@ -37,11 +35,11 @@ class BayesNet : public FactorGraph<CONDITIONAL> {
   typedef FactorGraph<CONDITIONAL> Base;
 
  public:
-  typedef typename std::shared_ptr<CONDITIONAL>
+  typedef typename boost::shared_ptr<CONDITIONAL>
       sharedConditional;  ///< A shared pointer to a conditional
 
  protected:
-  /// @name Protected Constructors
+  /// @name Standard Constructors
   /// @{
 
   /** Default constructor as an empty BayesNet */
@@ -51,14 +49,6 @@ class BayesNet : public FactorGraph<CONDITIONAL> {
   template <typename ITERATOR>
   BayesNet(ITERATOR firstConditional, ITERATOR lastConditional)
       : Base(firstConditional, lastConditional) {}
-
-  /**
-   * Constructor that takes an initializer list of shared pointers.
-   *  BayesNet<SymbolicConditional> bn = {make_shared<SymbolicConditional>(),
-   * ...};
-   */
-  BayesNet(std::initializer_list<sharedConditional> conditionals)
-      : Base(conditionals) {}
 
   /// @}
 
@@ -72,6 +62,7 @@ class BayesNet : public FactorGraph<CONDITIONAL> {
       const KeyFormatter& formatter = DefaultKeyFormatter) const override;
 
   /// @}
+
   /// @name Graph Display
   /// @{
 
@@ -88,16 +79,6 @@ class BayesNet : public FactorGraph<CONDITIONAL> {
   void saveGraph(const std::string& filename,
                  const KeyFormatter& keyFormatter = DefaultKeyFormatter,
                  const DotWriter& writer = DotWriter()) const;
-
-  /// @}
-  /// @name HybridValues methods
-  /// @{
-
-  // Expose HybridValues version of logProbability.
-  double logProbability(const HybridValues& x) const;
-
-  // Expose HybridValues version of evaluate.
-  double evaluate(const HybridValues& c) const;
 
   /// @}
 };

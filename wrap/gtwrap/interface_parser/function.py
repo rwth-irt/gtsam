@@ -12,8 +12,7 @@ Author: Duy Nguyen Ta, Fan Jiang, Matthew Sklar, Varun Agrawal, and Frank Dellae
 
 from typing import Any, Iterable, List, Union
 
-from pyparsing import (Literal, Optional, ParseResults,  # type: ignore
-                       delimitedList)
+from pyparsing import Optional, ParseResults, delimitedList  # type: ignore
 
 from .template import Template
 from .tokens import (COMMA, DEFAULT_ARG, EQUAL, IDENT, LOPBRACK, LPAREN, PAIR,
@@ -95,9 +94,9 @@ class ArgumentList:
         """Return a list of the names of all the arguments."""
         return self.args_list
 
-    def to_cpp(self) -> List[str]:
+    def to_cpp(self, use_boost: bool) -> List[str]:
         """Generate the C++ code for wrapping."""
-        return [arg.ctype.to_cpp() for arg in self.args_list]
+        return [arg.ctype.to_cpp(use_boost) for arg in self.args_list]
 
 
 class ReturnType:
@@ -106,10 +105,8 @@ class ReturnType:
 
     The return type can either be a single type or a pair such as <type1, type2>.
     """
-    # rule to parse optional std:: in front of `pair`
-    optional_std = Optional(Literal('std::')).suppress()
     _pair = (
-        optional_std + PAIR.suppress()  #
+        PAIR.suppress()  #
         + LOPBRACK  #
         + Type.rule("type1")  #
         + COMMA  #
@@ -138,7 +135,7 @@ class ReturnType:
         return "{}{}".format(
             self.type1, (', ' + self.type2.__repr__()) if self.type2 else '')
 
-    def to_cpp(self) -> str:
+    def to_cpp(self, use_boost: bool) -> str:
         """
         Generate the C++ code for wrapping.
 
@@ -147,9 +144,10 @@ class ReturnType:
         """
         if self.type2:
             return "std::pair<{type1},{type2}>".format(
-                type1=self.type1.to_cpp(), type2=self.type2.to_cpp())
+                type1=self.type1.to_cpp(use_boost),
+                type2=self.type2.to_cpp(use_boost))
         else:
-            return self.type1.to_cpp()
+            return self.type1.to_cpp(use_boost)
 
 
 class GlobalFunction:

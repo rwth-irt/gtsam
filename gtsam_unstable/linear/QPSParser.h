@@ -18,13 +18,12 @@
 
 #pragma once
 
-#include <gtsam_unstable/dllexport.h>
 #include <gtsam_unstable/linear/QP.h>
 #include <fstream>
 
 namespace gtsam {
 
-class GTSAM_UNSTABLE_EXPORT QPSParser {
+class QPSParser {
 
 private:
   std::string fileName_;

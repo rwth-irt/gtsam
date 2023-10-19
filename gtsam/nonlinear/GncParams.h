@@ -73,7 +73,8 @@ class GncParams {
   double weightsTol = 1e-4;  ///< If the weights are within weightsTol from being binary, stop iterating (only for TLS)
   Verbosity verbosity = SILENT;  ///< Verbosity level
 
-  /// Use IndexVector for inliers and outliers since it is fast
+  //TODO(Varun) replace IndexVector with vector<size_t> once pybind11/stl.h is globally enabled.
+  /// Use IndexVector for inliers and outliers since it is fast + wrapping
   using IndexVector = FastVector<uint64_t>;
   ///< Slots in the factor graph corresponding to measurements that we know are inliers
   IndexVector knownInliers = IndexVector();

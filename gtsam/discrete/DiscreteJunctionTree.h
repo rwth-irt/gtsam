@@ -53,7 +53,7 @@ namespace gtsam {
   public:
     typedef JunctionTree<DiscreteBayesTree, DiscreteFactorGraph> Base; ///< Base class
     typedef DiscreteJunctionTree This; ///< This class
-    typedef std::shared_ptr<This> shared_ptr; ///< Shared pointer to this class
+    typedef boost::shared_ptr<This> shared_ptr; ///< Shared pointer to this class
 
     /**
     * Build the elimination tree of a factor graph using precomputed column structure.
@@ -66,6 +66,4 @@ namespace gtsam {
     DiscreteJunctionTree(const DiscreteEliminationTree& eliminationTree);
   };
 
-  /// typedef for wrapper:
-  using DiscreteCluster = DiscreteJunctionTree::Cluster;
 }

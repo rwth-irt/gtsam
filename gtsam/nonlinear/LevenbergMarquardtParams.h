@@ -117,8 +117,8 @@ public:
   }
 
   static LevenbergMarquardtParams ReplaceOrdering(LevenbergMarquardtParams params,
-                                                  const Ordering& ord) {
-    params.ordering = ord;
+                                                  const Ordering& ordering) {
+    params.ordering = ordering;
     return params;
   }
 
@@ -149,8 +149,8 @@ public:
   /// @{
 
   /// @return a deep copy of this object
-  std::shared_ptr<NonlinearOptimizerParams> clone() const {
-    return std::shared_ptr<NonlinearOptimizerParams>(new LevenbergMarquardtParams(*this));
+  boost::shared_ptr<NonlinearOptimizerParams> clone() const {
+    return boost::shared_ptr<NonlinearOptimizerParams>(new LevenbergMarquardtParams(*this));
   }
 
   /// @}

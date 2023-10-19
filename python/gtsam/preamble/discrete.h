@@ -11,4 +11,5 @@
  * mutations on Python side will not be reflected on C++.
  */
 
-PYBIND11_MAKE_OPAQUE(gtsam::DiscreteKeys);
+#include <pybind11/stl.h>
+

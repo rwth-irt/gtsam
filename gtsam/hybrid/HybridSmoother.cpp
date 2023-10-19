@@ -24,56 +24,15 @@
 namespace gtsam {
 
 /* ************************************************************************* */
-Ordering HybridSmoother::getOrdering(
-    const HybridGaussianFactorGraph &newFactors) {
-  HybridGaussianFactorGraph factors(hybridBayesNet());
-  factors.push_back(newFactors);
-
-  // Get all the discrete keys from the factors
-  KeySet allDiscrete = factors.discreteKeySet();
-
-  // Create KeyVector with continuous keys followed by discrete keys.
-  KeyVector newKeysDiscreteLast;
-  const KeySet newFactorKeys = newFactors.keys();
-  // Insert continuous keys first.
-  for (auto &k : newFactorKeys) {
-    if (!allDiscrete.exists(k)) {
-      newKeysDiscreteLast.push_back(k);
-    }
-  }
-
-  // Insert discrete keys at the end
-  std::copy(allDiscrete.begin(), allDiscrete.end(),
-            std::back_inserter(newKeysDiscreteLast));
-
-  const VariableIndex index(factors);
-
-  // Get an ordering where the new keys are eliminated last
-  Ordering ordering = Ordering::ColamdConstrainedLast(
-      index, KeyVector(newKeysDiscreteLast.begin(), newKeysDiscreteLast.end()),
-      true);
-  return ordering;
-}
-
-/* ************************************************************************* */
 void HybridSmoother::update(HybridGaussianFactorGraph graph,
-                            std::optional<size_t> maxNrLeaves,
-                            const std::optional<Ordering> given_ordering) {
-  Ordering ordering;
-  // If no ordering provided, then we compute one
-  if (!given_ordering.has_value()) {
-    ordering = this->getOrdering(graph);
-  } else {
-    ordering = *given_ordering;
-  }
-
+                            const Ordering &ordering,
+                            boost::optional<size_t> maxNrLeaves) {
   // Add the necessary conditionals from the previous timestep(s).
   std::tie(graph, hybridBayesNet_) =
       addConditionals(graph, hybridBayesNet_, ordering);
 
   // Eliminate.
-  HybridBayesNet::shared_ptr bayesNetFragment =
-      graph.eliminateSequential(ordering);
+  auto bayesNetFragment = graph.eliminateSequential(ordering);
 
   /// Prune
   if (maxNrLeaves) {
@@ -82,11 +41,12 @@ void HybridSmoother::update(HybridGaussianFactorGraph graph,
     HybridBayesNet prunedBayesNetFragment =
         bayesNetFragment->prune(*maxNrLeaves);
     // Set the bayes net fragment to the pruned version
-    bayesNetFragment = std::make_shared<HybridBayesNet>(prunedBayesNetFragment);
+    bayesNetFragment =
+        boost::make_shared<HybridBayesNet>(prunedBayesNetFragment);
   }
 
   // Add the partial bayes net to the posterior bayes net.
-  hybridBayesNet_.add(*bayesNetFragment);
+  hybridBayesNet_.push_back<HybridBayesNet>(*bayesNetFragment);
 }
 
 /* ************************************************************************* */
@@ -97,8 +57,7 @@ HybridSmoother::addConditionals(const HybridGaussianFactorGraph &originalGraph,
   HybridGaussianFactorGraph graph(originalGraph);
   HybridBayesNet hybridBayesNet(originalHybridBayesNet);
 
-  // If hybridBayesNet is not empty,
-  // it means we have conditionals to add to the factor graph.
+  // If we are not at the first iteration, means we have conditionals to add.
   if (!hybridBayesNet.empty()) {
     // We add all relevant conditional mixtures on the last continuous variable
     // in the previous `hybridBayesNet` to the graph
@@ -133,6 +92,7 @@ HybridSmoother::addConditionals(const HybridGaussianFactorGraph &originalGraph,
     }
 
     graph.push_back(newConditionals);
+    // newConditionals.print("\n\n\nNew Conditionals to add back");
   }
   return {graph, hybridBayesNet};
 }
@@ -140,7 +100,8 @@ HybridSmoother::addConditionals(const HybridGaussianFactorGraph &originalGraph,
 /* ************************************************************************* */
 GaussianMixture::shared_ptr HybridSmoother::gaussianMixture(
     size_t index) const {
-  return hybridBayesNet_.at(index)->asMixture();
+  return boost::dynamic_pointer_cast<GaussianMixture>(
+      hybridBayesNet_.at(index));
 }
 
 /* ************************************************************************* */

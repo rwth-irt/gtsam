@@ -65,7 +65,7 @@ class SmartProjectionRigFactor : public SmartProjectionFactor<CAMERA> {
   KeyVector nonUniqueKeys_;
 
   /// cameras in the rig (fixed poses wrt body and intrinsics, for each camera)
-  std::shared_ptr<typename Base::Cameras> cameraRig_;
+  boost::shared_ptr<typename Base::Cameras> cameraRig_;
 
   /// vector of camera Ids (one for each observation, in the same order),
   /// identifying which camera took the measurement
@@ -78,7 +78,7 @@ class SmartProjectionRigFactor : public SmartProjectionFactor<CAMERA> {
   typedef CameraSet<CAMERA> Cameras;
 
   /// shorthand for a smart pointer to a factor
-  typedef std::shared_ptr<This> shared_ptr;
+  typedef boost::shared_ptr<This> shared_ptr;
 
   /// Default constructor, only for serialization
   SmartProjectionRigFactor() {}
@@ -93,7 +93,7 @@ class SmartProjectionRigFactor : public SmartProjectionFactor<CAMERA> {
    */
   SmartProjectionRigFactor(
       const SharedNoiseModel& sharedNoiseModel,
-      const std::shared_ptr<Cameras>& cameraRig,
+      const boost::shared_ptr<Cameras>& cameraRig,
       const SmartProjectionParams& params = SmartProjectionParams())
       : Base(sharedNoiseModel, params), cameraRig_(cameraRig) {
     // throw exception if configuration is not supported by this factor
@@ -106,6 +106,9 @@ class SmartProjectionRigFactor : public SmartProjectionFactor<CAMERA> {
           "SmartProjectionRigFactor: "
           "linearizationMode must be set to HESSIAN");
   }
+
+  /** Virtual destructor */
+  ~SmartProjectionRigFactor() override = default;
 
   /**
    * add a new measurement, corresponding to an observation from pose "poseKey"
@@ -168,7 +171,7 @@ class SmartProjectionRigFactor : public SmartProjectionFactor<CAMERA> {
   const KeyVector& nonUniqueKeys() const { return nonUniqueKeys_; }
 
   /// return the calibration object
-  const std::shared_ptr<Cameras>& cameraRig() const { return cameraRig_; }
+  const boost::shared_ptr<Cameras>& cameraRig() const { return cameraRig_; }
 
   /// return the calibration object
   const FastVector<size_t>& cameraIds() const { return cameraIds_; }
@@ -259,7 +262,7 @@ class SmartProjectionRigFactor : public SmartProjectionFactor<CAMERA> {
   }
 
   /// linearize and return a Hessianfactor that is an approximation of error(p)
-  std::shared_ptr<RegularHessianFactor<DimPose> > createHessianFactor(
+  boost::shared_ptr<RegularHessianFactor<DimPose> > createHessianFactor(
       const Values& values, const double& lambda = 0.0,
       bool diagonalDamping = false) const {
     // we may have multiple observation sharing the same keys (e.g., 2 cameras
@@ -288,7 +291,7 @@ class SmartProjectionRigFactor : public SmartProjectionFactor<CAMERA> {
       if (this->params_.degeneracyMode == ZERO_ON_DEGENERACY) {
         for (Matrix& m : Gs) m = Matrix::Zero(DimPose, DimPose);
         for (Vector& v : gs) v = Vector::Zero(DimPose);
-        return std::make_shared<RegularHessianFactor<DimPose> >(this->keys_,
+        return boost::make_shared<RegularHessianFactor<DimPose> >(this->keys_,
                                                                   Gs, gs, 0.0);
       } else {
         throw std::runtime_error(
@@ -318,7 +321,7 @@ class SmartProjectionRigFactor : public SmartProjectionFactor<CAMERA> {
         Base::Cameras::template SchurComplementAndRearrangeBlocks<3, 6, 6>(
             Fs, E, P, b, nonUniqueKeys_, this->keys_);
 
-    return std::make_shared<RegularHessianFactor<DimPose> >(
+    return boost::make_shared<RegularHessianFactor<DimPose> >(
         this->keys_, augmentedHessianUniqueKeys);
   }
 
@@ -329,7 +332,7 @@ class SmartProjectionRigFactor : public SmartProjectionFactor<CAMERA> {
    * extrinsic pose for this factor
    * @return a Gaussian factor
    */
-  std::shared_ptr<GaussianFactor> linearizeDamped(
+  boost::shared_ptr<GaussianFactor> linearizeDamped(
       const Values& values, const double& lambda = 0.0) const {
     // depending on flag set on construction we may linearize to different
     // linear factors
@@ -343,13 +346,12 @@ class SmartProjectionRigFactor : public SmartProjectionFactor<CAMERA> {
   }
 
   /// linearize
-  std::shared_ptr<GaussianFactor> linearize(
+  boost::shared_ptr<GaussianFactor> linearize(
       const Values& values) const override {
     return this->linearizeDamped(values);
   }
 
  private:
-#ifdef GTSAM_ENABLE_BOOST_SERIALIZATION  ///
   /// Serialization function
   friend class boost::serialization::access;
   template <class ARCHIVE>
@@ -359,7 +361,6 @@ class SmartProjectionRigFactor : public SmartProjectionFactor<CAMERA> {
     // ar& BOOST_SERIALIZATION_NVP(cameraRig_);
     // ar& BOOST_SERIALIZATION_NVP(cameraIds_);
   }
-#endif
 };
 // end of class declaration
 

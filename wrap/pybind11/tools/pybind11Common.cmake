@@ -5,8 +5,8 @@ Adds the following targets::
     pybind11::pybind11 - link to headers and pybind11
     pybind11::module - Adds module links
     pybind11::embed - Adds embed links
-    pybind11::lto - Link time optimizations (only if CMAKE_INTERPROCEDURAL_OPTIMIZATION is not set)
-    pybind11::thin_lto - Link time optimizations (only if CMAKE_INTERPROCEDURAL_OPTIMIZATION is not set)
+    pybind11::lto - Link time optimizations (manual selection)
+    pybind11::thin_lto - Link time optimizations (manual selection)
     pybind11::python_link_helper - Adds link to Python libraries
     pybind11::windows_extras - MSVC bigobj and mp for building multithreaded
     pybind11::opt_size - avoid optimizations that increase code size
@@ -20,7 +20,7 @@ Adds the following functions::
 
 # CMake 3.10 has an include_guard command, but we can't use that yet
 # include_guard(global) (pre-CMake 3.10)
-if(TARGET pybind11::pybind11)
+if(TARGET pybind11::lto)
   return()
 endif()
 
@@ -163,19 +163,11 @@ endif()
 
 # --------------------- Python specifics -------------------------
 
-# CMake 3.27 removes the classic FindPythonInterp if CMP0148 is NEW
-if(CMAKE_VERSION VERSION_LESS "3.27")
-  set(_pybind11_missing_old_python "OLD")
-else()
-  cmake_policy(GET CMP0148 _pybind11_missing_old_python)
-endif()
-
 # Check to see which Python mode we are in, new, old, or no python
 if(PYBIND11_NOPYTHON)
   set(_pybind11_nopython ON)
 elseif(
-  _pybind11_missing_old_python STREQUAL "NEW"
-  OR PYBIND11_FINDPYTHON
+  PYBIND11_FINDPYTHON
   OR Python_FOUND
   OR Python2_FOUND
   OR Python3_FOUND)
@@ -319,16 +311,6 @@ function(_pybind11_generate_lto target prefer_thin_lto)
         HAS_FLTO "-flto${cxx_append}" "-flto${linker_append}" PYBIND11_LTO_CXX_FLAGS
         PYBIND11_LTO_LINKER_FLAGS)
     endif()
-  elseif(CMAKE_CXX_COMPILER_ID MATCHES "IntelLLVM")
-    # IntelLLVM equivalent to LTO is called IPO; also IntelLLVM is WIN32/UNIX
-    # WARNING/HELP WANTED: This block of code is currently not covered by pybind11 GitHub Actions!
-    if(WIN32)
-      _pybind11_return_if_cxx_and_linker_flags_work(
-        HAS_INTEL_IPO "-Qipo" "-Qipo" PYBIND11_LTO_CXX_FLAGS PYBIND11_LTO_LINKER_FLAGS)
-    else()
-      _pybind11_return_if_cxx_and_linker_flags_work(
-        HAS_INTEL_IPO "-ipo" "-ipo" PYBIND11_LTO_CXX_FLAGS PYBIND11_LTO_LINKER_FLAGS)
-    endif()
   elseif(CMAKE_CXX_COMPILER_ID MATCHES "Intel")
     # Intel equivalent to LTO is called IPO
     _pybind11_return_if_cxx_and_linker_flags_work(HAS_INTEL_IPO "-ipo" "-ipo"
@@ -380,13 +362,11 @@ function(_pybind11_generate_lto target prefer_thin_lto)
   endif()
 endfunction()
 
-if(NOT DEFINED CMAKE_INTERPROCEDURAL_OPTIMIZATION)
-  add_library(pybind11::lto IMPORTED INTERFACE ${optional_global})
-  _pybind11_generate_lto(pybind11::lto FALSE)
+add_library(pybind11::lto IMPORTED INTERFACE ${optional_global})
+_pybind11_generate_lto(pybind11::lto FALSE)
 
-  add_library(pybind11::thin_lto IMPORTED INTERFACE ${optional_global})
-  _pybind11_generate_lto(pybind11::thin_lto TRUE)
-endif()
+add_library(pybind11::thin_lto IMPORTED INTERFACE ${optional_global})
+_pybind11_generate_lto(pybind11::thin_lto TRUE)
 
 # ---------------------- pybind11_strip -----------------------------
 

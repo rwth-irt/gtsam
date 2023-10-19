@@ -34,7 +34,7 @@ namespace gtsam {
  * SLAM, where we have "time of arrival" measurements at a set of sensors. The
  * TOA functor below provides a measurement function for those applications.
  */
-class GTSAM_UNSTABLE_EXPORT Event {
+class Event {
   double time_;      ///< Time event was generated
   Point3 location_;  ///< Location at time event was generated
 
@@ -55,17 +55,17 @@ class GTSAM_UNSTABLE_EXPORT Event {
   Point3 location() const { return location_; }
 
   // TODO(frank) we really have to think of a better way to do linear arguments
-  double height(OptionalJacobian<1, 4> H = {}) const {
+  double height(OptionalJacobian<1, 4> H = boost::none) const {
     static const Matrix14 JacobianZ = (Matrix14() << 0, 0, 0, 1).finished();
     if (H) *H = JacobianZ;
     return location_.z();
   }
 
   /** print with optional string */
-  void print(const std::string& s = "") const;
+  GTSAM_UNSTABLE_EXPORT void print(const std::string& s = "") const;
 
   /** equals with an tolerance */
-  bool equals(const Event& other,
+  GTSAM_UNSTABLE_EXPORT bool equals(const Event& other,
                                     double tol = 1e-9) const;
 
   /// Updates a with tangent space delta
@@ -101,8 +101,8 @@ class TimeOfArrival {
 
   /// Calculate time of arrival, with derivatives
   double operator()(const Event& event, const Point3& sensor,  //
-                    OptionalJacobian<1, 4> H1 = {},   //
-                    OptionalJacobian<1, 3> H2 = {}) const {
+                    OptionalJacobian<1, 4> H1 = boost::none,   //
+                    OptionalJacobian<1, 3> H2 = boost::none) const {
     Matrix13 D1, D2;
     double distance = gtsam::distance3(event.location(), sensor, D1, D2);
     if (H1)

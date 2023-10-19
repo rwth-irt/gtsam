@@ -74,10 +74,9 @@ class GTSAM_EXPORT Similarity2 : public LieGroup<Similarity2, 4> {
   bool operator==(const Similarity2& other) const;
 
   /// Print with optional string
-  void print(const std::string& s = "") const;
+  void print(const std::string& s) const;
 
-  GTSAM_EXPORT friend std::ostream& operator<<(std::ostream& os,
-                                               const Similarity2& p);
+  friend std::ostream& operator<<(std::ostream& os, const Similarity2& p);
 
   /// @}
   /// @name Group
@@ -144,20 +143,20 @@ class GTSAM_EXPORT Similarity2 : public LieGroup<Similarity2, 4> {
    * \f$ [t_x, t_y, \delta, \lambda] \f$
    */
   static Vector4 Logmap(const Similarity2& S,  //
-                        OptionalJacobian<4, 4> Hm = {});
+                        OptionalJacobian<4, 4> Hm = boost::none);
 
   /// Exponential map at the identity
   static Similarity2 Expmap(const Vector4& v,  //
-                            OptionalJacobian<4, 4> Hm = {});
+                            OptionalJacobian<4, 4> Hm = boost::none);
 
   /// Chart at the origin
   struct ChartAtOrigin {
     static Similarity2 Retract(const Vector4& v,
-                               ChartJacobian H = {}) {
+                               ChartJacobian H = boost::none) {
       return Similarity2::Expmap(v, H);
     }
     static Vector4 Local(const Similarity2& other,
-                         ChartJacobian H = {}) {
+                         ChartJacobian H = boost::none) {
       return Similarity2::Logmap(other, H);
     }
   };

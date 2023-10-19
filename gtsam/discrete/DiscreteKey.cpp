@@ -17,6 +17,7 @@
  */
 
 #include <iostream>
+#include <boost/format.hpp> // for key names
 #include "DiscreteKey.h"
 
 namespace gtsam {
@@ -25,7 +26,7 @@ namespace gtsam {
 
   DiscreteKeys::DiscreteKeys(const vector<int>& cs) {
     for (size_t i = 0; i < cs.size(); i++) {
-      string name = "v" + std::to_string(i);
+      string name = boost::str(boost::format("v%1%") % i);
       push_back(DiscreteKey(i, cs[i]));
     }
   }
@@ -49,7 +50,6 @@ namespace gtsam {
 
   void DiscreteKeys::print(const std::string& s,
                            const KeyFormatter& keyFormatter) const {
-    std::cout << (s.empty() ? "" : s + " ") << std::endl;
     for (auto&& dkey : *this) {
       std::cout << DefaultKeyFormatter(dkey.first) << " " << dkey.second
                 << std::endl;

@@ -20,6 +20,7 @@
 
 #include <gtsam/linear/GaussianFactorGraph.h>
 #include <gtsam_unstable/linear/InequalityFactorGraph.h>
+#include <boost/range/adaptor/map.hpp>
 
 namespace gtsam {
 
@@ -113,7 +114,7 @@ protected:
    * If there is a blocking constraint, the closest one will be added to the
    * working set and become active in the next iteration.
    */
-  std::tuple<double, int> computeStepSize(
+  boost::tuple<double, int> computeStepSize(
       const InequalityFactorGraph& workingSet, const VectorValues& xk,
       const VectorValues& p, const double& maxAlpha) const;
 

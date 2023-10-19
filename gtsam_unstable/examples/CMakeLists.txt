@@ -1,12 +1,5 @@
-set (excluded_examples "")
+set (excluded_examples
+    # fileToExclude.cpp
+)
 
-# Add examples to exclude if GTSAM_USE_BOOST_FEATURES is not set
-if (NOT GTSAM_USE_BOOST_FEATURES) 
-  # add to excluded examples
-  list (APPEND excluded_examples
-      "GncPoseAveragingExample.cpp"
-      )
-endif()
-
-
-gtsamAddExamplesGlob("*.cpp" "${excluded_examples}" "gtsam_unstable" ${GTSAM_BUILD_EXAMPLES_ALWAYS})
+gtsamAddExamplesGlob("*.cpp" "${excluded_examples}" "gtsam_unstable")

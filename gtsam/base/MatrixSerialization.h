@@ -18,8 +18,6 @@
 
 // \callgraph
 
-// Defined only if boost serialization is enabled
-#ifdef GTSAM_ENABLE_BOOST_SERIALIZATION
 #pragma once
 
 #include <gtsam/base/Matrix.h>
@@ -89,4 +87,3 @@ void serialize(Archive& ar, gtsam::Matrix& m, const unsigned int version) {
 
 }  // namespace serialization
 }  // namespace boost
-#endif

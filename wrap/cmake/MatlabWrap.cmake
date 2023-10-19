@@ -63,11 +63,11 @@ endmacro()
 
 # Consistent and user-friendly wrap function
 function(matlab_wrap interfaceHeader moduleName linkLibraries
-         extraIncludeDirs extraMexFlags ignore_classes use_boost_serialization)
+         extraIncludeDirs extraMexFlags ignore_classes)
   find_and_configure_matlab()
   wrap_and_install_library("${interfaceHeader}" "${moduleName}" "${linkLibraries}"
                            "${extraIncludeDirs}" "${extraMexFlags}"
-                           "${ignore_classes}" "${use_boost_serialization}")
+                           "${ignore_classes}")
 endfunction()
 
 # Wrapping function.  Builds a mex module from the provided
@@ -86,18 +86,16 @@ endfunction()
 # extraMexFlags:    Any *additional* flags to pass to the compiler when building
 # the wrap code.  Normally, leave this empty.
 # ignore_classes:  List of classes to ignore in the wrapping.
-# use_boost_serialization: Flag indicating whether to provide Boost-based serialization.
 function(wrap_and_install_library interfaceHeader moduleName linkLibraries
-         extraIncludeDirs extraMexFlags ignore_classes use_boost_serialization)
+         extraIncludeDirs extraMexFlags ignore_classes)
   wrap_library_internal("${interfaceHeader}" "${moduleName}" "${linkLibraries}"
-                        "${extraIncludeDirs}" "${extraMexFlags}" "${ignore_classes}"
-                        "${use_boost_serialization}")
+                        "${extraIncludeDirs}" "${mexFlags}")
   install_wrapped_library_internal("${moduleName}")
 endfunction()
 
 # Internal function that wraps a library and compiles the wrapper
 function(wrap_library_internal interfaceHeader moduleName linkLibraries extraIncludeDirs
-         extraMexFlags ignore_classes use_boost_serialization)
+         extraMexFlags)
   if(UNIX AND NOT APPLE)
     if(CMAKE_SIZEOF_VOID_P EQUAL 8)
       set(mexModuleExt mexa64)
@@ -105,12 +103,7 @@ function(wrap_library_internal interfaceHeader moduleName linkLibraries extraInc
       set(mexModuleExt mexglx)
     endif()
   elseif(APPLE)
-    check_cxx_compiler_flag("-arch arm64" arm64Supported)
-    if (arm64Supported)
-      set(mexModuleExt mexmaca64)
-    else()
-      set(mexModuleExt mexmaci64)
-    endif()
+    set(mexModuleExt mexmaci64)
   elseif(MSVC)
     if(CMAKE_CL_64)
       set(mexModuleExt mexw64)
@@ -152,6 +145,30 @@ function(wrap_library_internal interfaceHeader moduleName linkLibraries extraInc
       endif()
     endif()
   endforeach()
+
+  # CHRIS: Temporary fix. On my system the get_target_property above returned
+  # Not-found for gtsam module This needs to be fixed!!
+  if(UNIX AND NOT APPLE)
+    list(
+      APPEND
+      automaticDependencies
+      ${Boost_SERIALIZATION_LIBRARY_RELEASE}
+      ${Boost_FILESYSTEM_LIBRARY_RELEASE}
+      ${Boost_SYSTEM_LIBRARY_RELEASE}
+      ${Boost_THREAD_LIBRARY_RELEASE}
+      ${Boost_DATE_TIME_LIBRARY_RELEASE})
+    # Only present in Boost >= 1.48.0
+    if(Boost_TIMER_LIBRARY_RELEASE)
+      list(APPEND automaticDependencies ${Boost_TIMER_LIBRARY_RELEASE}
+           ${Boost_CHRONO_LIBRARY_RELEASE})
+      if(WRAP_MEX_BUILD_STATIC_MODULE)
+        # list(APPEND automaticDependencies -Wl,--no-as-needed -lrt)
+      endif()
+    endif()
+  endif()
+
+  # message("AUTOMATIC DEPENDENCIES:  ${automaticDependencies}") CHRIS: End
+  # temporary fix
 
   # Separate dependencies
   set(correctedOtherLibraries "")
@@ -232,13 +249,6 @@ function(wrap_library_internal interfaceHeader moduleName linkLibraries extraInc
     set(GTWRAP_PATH_SEPARATOR ";")
   endif()
 
-  # Set boost serialization flag for the python script call below.
-  if(use_boost_serialization)
-    set(_BOOST_SERIALIZATION "--use-boost-serialization")
-  else(use_boost_serialization)
-    set(_BOOST_SERIALIZATION "")
-  endif(use_boost_serialization)
-
   add_custom_command(
     OUTPUT ${generated_cpp_file}
     DEPENDS ${interfaceHeader} ${module_library_target} ${otherLibraryTargets}
@@ -248,7 +258,7 @@ function(wrap_library_internal interfaceHeader moduleName linkLibraries extraInc
       "PYTHONPATH=${GTWRAP_PACKAGE_DIR}${GTWRAP_PATH_SEPARATOR}$ENV{PYTHONPATH}"
       ${PYTHON_EXECUTABLE} ${MATLAB_WRAP_SCRIPT} --src "${interfaceHeader}"
       --module_name ${moduleName} --out ${generated_files_path}
-      --top_module_namespaces ${moduleName} --ignore ${ignore_classes} ${_BOOST_SERIALIZATION}
+      --top_module_namespaces ${moduleName} --ignore ${ignore_classes}
     VERBATIM
     WORKING_DIRECTORY ${generated_files_path})
 
@@ -304,12 +314,7 @@ function(wrap_library_internal interfaceHeader moduleName linkLibraries extraInc
       APPEND
       PROPERTY COMPILE_FLAGS "/bigobj")
   elseif(APPLE)
-    check_cxx_compiler_flag("-arch arm64" arm64Supported)
-    if (arm64Supported)
-      set(mxLibPath "${MATLAB_ROOT}/bin/maca64")
-    else()
-      set(mxLibPath "${MATLAB_ROOT}/bin/maci64")
-    endif()
+    set(mxLibPath "${MATLAB_ROOT}/bin/maci64")
     target_link_libraries(
       ${moduleName}_matlab_wrapper "${mxLibPath}/libmex.dylib"
       "${mxLibPath}/libmx.dylib" "${mxLibPath}/libmat.dylib")
@@ -377,12 +382,7 @@ function(check_conflicting_libraries_internal libraries)
   if(UNIX)
     # Set path for matlab's built-in libraries
     if(APPLE)
-      check_cxx_compiler_flag("-arch arm64" arm64Supported)
-      if (arm64Supported)
-        set(mxLibPath "${MATLAB_ROOT}/bin/maca64")
-      else()
-        set(mxLibPath "${MATLAB_ROOT}/bin/maci64")
-      endif()
+      set(mxLibPath "${MATLAB_ROOT}/bin/maci64")
     else()
       if(CMAKE_CL_64)
         set(mxLibPath "${MATLAB_ROOT}/bin/glnxa64")

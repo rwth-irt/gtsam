@@ -28,7 +28,6 @@
 #include <algorithm>
 #include <map>
 #include <utility>
-#include <variant>
 
 using namespace std;
 
@@ -39,18 +38,16 @@ template class BayesTree<ISAM2Clique>;
 
 /* ************************************************************************* */
 ISAM2::ISAM2(const ISAM2Params& params) : params_(params), update_count_(0) {
-  if (std::holds_alternative<ISAM2DoglegParams>(params_.optimizationParams)) {
+  if (params_.optimizationParams.type() == typeid(ISAM2DoglegParams))
     doglegDelta_ =
-        std::get<ISAM2DoglegParams>(params_.optimizationParams).initialDelta;
-  }
+        boost::get<ISAM2DoglegParams>(params_.optimizationParams).initialDelta;
 }
 
 /* ************************************************************************* */
 ISAM2::ISAM2() : update_count_(0) {
-  if (std::holds_alternative<ISAM2DoglegParams>(params_.optimizationParams)) {
+  if (params_.optimizationParams.type() == typeid(ISAM2DoglegParams))
     doglegDelta_ =
-        std::get<ISAM2DoglegParams>(params_.optimizationParams).initialDelta;
-  }
+        boost::get<ISAM2DoglegParams>(params_.optimizationParams).initialDelta;
 }
 
 /* ************************************************************************* */
@@ -117,7 +114,7 @@ void ISAM2::recalculate(const ISAM2UpdateParams& updateParams,
                         const KeySet& relinKeys, ISAM2Result* result) {
   gttic(recalculate);
   UpdateImpl::LogRecalculateKeys(*result);
-
+    ///  std::cout << "8.1" << std::endl;
   if (!result->markedKeys.empty() || !result->observedKeys.empty()) {
     // Remove top of Bayes tree and convert to a factor graph:
     // (a) For each affected variable, remove the corresponding clique and all
@@ -128,7 +125,7 @@ void ISAM2::recalculate(const ISAM2UpdateParams& updateParams,
     this->removeTop(
         KeyVector(result->markedKeys.begin(), result->markedKeys.end()),
         &affectedBayesNet, &orphans);
-
+   // std::cout << "8.2" << std::endl;
     // FactorGraph<GaussianFactor> factors(affectedBayesNet);
     // bug was here: we cannot reuse the original factors, because then the
     // cached factors get messed up [all the necessary data is actually
@@ -150,7 +147,7 @@ void ISAM2::recalculate(const ISAM2UpdateParams& updateParams,
       affectedKeys.insert(affectedKeys.end(), conditional->beginFrontals(),
                           conditional->endFrontals());
     gttoc(affectedKeys);
-
+   // std::cout << "8.3" << std::endl;
     KeySet affectedKeysSet;
     static const double kBatchThreshold = 0.65;
     if (affectedKeys.size() >= theta_.size() * kBatchThreshold) {
@@ -160,16 +157,17 @@ void ISAM2::recalculate(const ISAM2UpdateParams& updateParams,
       recalculateIncremental(updateParams, relinKeys, affectedKeys,
                              &affectedKeysSet, &orphans, result);
     }
-
+    //std::cout << "8.4" << std::endl;
     // Root clique variables for detailed results
     if (result->detail && params_.enableDetailedResults) {
       for (const auto& root : roots_)
         for (Key var : *root->conditional())
           result->detail->variableStatus[var].inRootClique = true;
     }
-
+   // std::cout << "8.5" << std::endl;
     // Update replaced keys mask (accumulates until back-substitution happens)
     deltaReplacedMask_.insert(affectedKeysSet.begin(), affectedKeysSet.end());
+    //std::cout << "8.6" << std::endl;
   }
 }
 
@@ -179,11 +177,9 @@ void ISAM2::recalculateBatch(const ISAM2UpdateParams& updateParams,
   gttic(recalculateBatch);
 
   gttic(add_keys);
+  br::copy(variableIndex_ | br::map_keys,
+           std::inserter(*affectedKeysSet, affectedKeysSet->end()));
 
-  // copy the keys from the variableIndex_ to the affectedKeysSet
-  for (const auto& [key, _] : variableIndex_) {
-    affectedKeysSet->insert(key);
-  }
   // Removed unused keys:
   VariableIndex affectedFactorsVarIndex = variableIndex_;
 
@@ -294,7 +290,8 @@ void ISAM2::recalculateIncremental(const ISAM2UpdateParams& updateParams,
   gttic(orphans);
   // Add the orphaned subtrees
   for (const auto& orphan : *orphans)
-    factors.emplace_shared<BayesTreeOrphanWrapper<ISAM2::Clique> >(orphan);
+    factors +=
+        boost::make_shared<BayesTreeOrphanWrapper<ISAM2::Clique> >(orphan);
   gttoc(orphans);
 
   // 3. Re-order and eliminate the factor graph into a Bayes net (Algorithm
@@ -323,7 +320,7 @@ void ISAM2::recalculateIncremental(const ISAM2UpdateParams& updateParams,
     const int group =
         result->observedKeys.size() < affectedFactorsVarIndex.size() ? 1 : 0;
     for (Key var : result->observedKeys)
-      constraintGroups.emplace(var, group);
+      constraintGroups.insert(std::make_pair(var, group));
   }
 
   // Remove unaffected keys from the constraints
@@ -400,9 +397,9 @@ void ISAM2::removeVariables(const KeySet& unusedKeys) {
 ISAM2Result ISAM2::update(
     const NonlinearFactorGraph& newFactors, const Values& newTheta,
     const FactorIndices& removeFactorIndices,
-    const std::optional<FastMap<Key, int> >& constrainedKeys,
-    const std::optional<FastList<Key> >& noRelinKeys,
-    const std::optional<FastList<Key> >& extraReelimKeys,
+    const boost::optional<FastMap<Key, int> >& constrainedKeys,
+    const boost::optional<FastList<Key> >& noRelinKeys,
+    const boost::optional<FastList<Key> >& extraReelimKeys,
     bool force_relinearize) {
   ISAM2UpdateParams params;
   params.constrainedKeys = constrainedKeys;
@@ -423,29 +420,37 @@ ISAM2Result ISAM2::update(const NonlinearFactorGraph& newFactors,
   UpdateImpl::LogStartingUpdate(newFactors, *this);
   ISAM2Result result(params_.enableDetailedResults);
   UpdateImpl update(params_, updateParams);
-
+  //std::cout << "1" << std::endl;
   // Update delta if we need it to check relinearization later
   if (update.relinarizationNeeded(update_count_))
     updateDelta(updateParams.forceFullSolve);
 
+      //std::cout << "2" << std::endl;
   // 1. Add any new factors \Factors:=\Factors\cup\Factors'.
   update.pushBackFactors(newFactors, &nonlinearFactors_, &linearFactors_,
                          &variableIndex_, &result.newFactorsIndices,
                          &result.keysWithRemovedFactors);
+
+     // std::cout << "3" << std::endl;
   update.computeUnusedKeys(newFactors, variableIndex_,
                            result.keysWithRemovedFactors, &result.unusedKeys);
 
+      //std::cout << "4" << std::endl;
   // 2. Initialize any new variables \Theta_{new} and add
   // \Theta:=\Theta\cup\Theta_{new}.
   addVariables(newTheta, result.details());
   if (params_.evaluateNonlinearError)
     update.error(nonlinearFactors_, calculateEstimate(), &result.errorBefore);
 
+     // std::cout << "5" << std::endl;
   // 3. Mark linear update
   update.gatherInvolvedKeys(newFactors, nonlinearFactors_,
                             result.keysWithRemovedFactors, &result.markedKeys);
+
+     // std::cout << "6" << std::endl;
   update.updateKeys(result.markedKeys, &result);
 
+     // std::cout << "7" << std::endl;
   KeySet relinKeys;
   result.variablesRelinearized = 0;
   if (update.relinarizationNeeded(update_count_)) {
@@ -458,32 +463,35 @@ ISAM2Result ISAM2::update(const NonlinearFactorGraph& newFactors,
       update.findFluid(roots_, relinKeys, &result.markedKeys, result.details());
       // 6. Update linearization point for marked variables:
       // \Theta_{J}:=\Theta_{J}+\Delta_{J}.
-      theta_.retractMasked(delta_, relinKeys);
+      UpdateImpl::ExpmapMasked(delta_, relinKeys, &theta_);
     }
     result.variablesRelinearized = result.markedKeys.size();
   }
 
+      //std::cout << "7" << std::endl;
   // 7. Linearize new factors
   update.linearizeNewFactors(newFactors, theta_, nonlinearFactors_.size(),
                              result.newFactorsIndices, &linearFactors_);
   update.augmentVariableIndex(newFactors, result.newFactorsIndices,
                               &variableIndex_);
 
+      //std::cout << "8" << std::endl;
   // 8. Redo top of Bayes tree and update data structures
   recalculate(updateParams, relinKeys, &result);
   if (!result.unusedKeys.empty()) removeVariables(result.unusedKeys);
   result.cliques = this->nodes().size();
-
+      //std::cout << "9" << std::endl;
   if (params_.evaluateNonlinearError)
     update.error(nonlinearFactors_, calculateEstimate(), &result.errorAfter);
+      //std::cout << "10" << std::endl;
   return result;
 }
 
 /* ************************************************************************* */
 void ISAM2::marginalizeLeaves(
     const FastList<Key>& leafKeysList,
-    FactorIndices* marginalFactorsIndices,
-    FactorIndices* deletedFactorsIndices) {
+    boost::optional<FactorIndices&> marginalFactorsIndices,
+    boost::optional<FactorIndices&> deletedFactorsIndices) {
   // Convert to ordered set
   KeySet leafKeys(leafKeysList.begin(), leafKeysList.end());
 
@@ -529,7 +537,7 @@ void ISAM2::marginalizeLeaves(
 
       // Traverse up the tree to find the root of the marginalized subtree
       sharedClique clique = nodes_[j];
-      while (clique->parent_.use_count() != 0) {
+      while (!clique->parent_._empty()) {
         // Check if parent contains a marginalized leaf variable.  Only need to
         // check the first variable because it is the closest to the leaves.
         sharedClique parent = clique->parent();
@@ -556,12 +564,9 @@ void ISAM2::marginalizeLeaves(
         // We do not need the marginal factors associated with this clique
         // because their information is already incorporated in the new
         // marginal factor.  So, now associate this marginal factor with the
-        // parent of this clique. If the clique is a root and has no parent, then
-        // we can discard it without keeping track of the marginal factor.
-        if (clique->parent()) {
-            marginalFactors[clique->parent()->conditional()->front()].push_back(
-                    marginalFactor);
-        }
+        // parent of this clique.
+        marginalFactors[clique->parent()->conditional()->front()].push_back(
+            marginalFactor);
         // Now remove this clique and its subtree - all of its marginal
         // information has been stored in marginalFactors.
         trackingRemoveSubtree(clique);
@@ -639,7 +644,7 @@ void ISAM2::marginalizeLeaves(
 
         // Make the clique's matrix appear as a subset
         const DenseIndex dimToRemove = cg->matrixObject().offset(nToRemove);
-        cg->matrixObject().firstBlock() += nToRemove;
+        cg->matrixObject().firstBlock() = nToRemove;
         cg->matrixObject().rowStart() = dimToRemove;
 
         // Change the keys in the clique
@@ -665,65 +670,52 @@ void ISAM2::marginalizeLeaves(
   // At this point we have updated the BayesTree, now update the remaining iSAM2
   // data structures
 
-  // Remove the factors to remove that will be summarized in marginal factors
-  NonlinearFactorGraph removedFactors;
-  for (const auto index : factorIndicesToRemove) {
-    removedFactors.push_back(nonlinearFactors_[index]);
-    nonlinearFactors_.remove(index);
-    if (params_.cacheLinearizedFactors) {
-      linearFactors_.remove(index);
-    }
-  }
-  variableIndex_.remove(factorIndicesToRemove.begin(),
-                        factorIndicesToRemove.end(), removedFactors);
-
   // Gather factors to add - the new marginal factors
-  GaussianFactorGraph factorsToAdd{};
-  NonlinearFactorGraph nonlinearFactorsToAdd{};
+  GaussianFactorGraph factorsToAdd;
   for (const auto& key_factors : marginalFactors) {
     for (const auto& factor : key_factors.second) {
       if (factor) {
         factorsToAdd.push_back(factor);
-        nonlinearFactorsToAdd.emplace_shared<LinearContainerFactor>(factor);
+        if (marginalFactorsIndices)
+          marginalFactorsIndices->push_back(nonlinearFactors_.size());
+        nonlinearFactors_.push_back(
+            boost::make_shared<LinearContainerFactor>(factor));
+        if (params_.cacheLinearizedFactors) linearFactors_.push_back(factor);
         for (Key factorKey : *factor) {
           fixedVariables_.insert(factorKey);
         }
       }
     }
   }
-  // Add the nonlinear factors and keep track of the new factor indices
-  auto newFactorIndices = nonlinearFactors_.add_factors(nonlinearFactorsToAdd,
-                                                        params_.findUnusedFactorSlots);
-  // Add cached linear factors.
-  if (params_.cacheLinearizedFactors){
-    linearFactors_.resize(nonlinearFactors_.size());
-    for (std::size_t i = 0; i < nonlinearFactorsToAdd.size(); ++i){
-      linearFactors_[newFactorIndices[i]] = factorsToAdd[i];
-    }
+  variableIndex_.augment(factorsToAdd);  // Augment the variable index
+
+  // Remove the factors to remove that have been summarized in the newly-added
+  // marginal factors
+  NonlinearFactorGraph removedFactors;
+  for (const auto index : factorIndicesToRemove) {
+    removedFactors.push_back(nonlinearFactors_[index]);
+    nonlinearFactors_.remove(index);
+    if (params_.cacheLinearizedFactors) linearFactors_.remove(index);
   }
-  // Augment the variable index
-  variableIndex_.augment(factorsToAdd, newFactorIndices);
+  variableIndex_.remove(factorIndicesToRemove.begin(),
+                        factorIndicesToRemove.end(), removedFactors);
+
+  if (deletedFactorsIndices)
+    deletedFactorsIndices->assign(factorIndicesToRemove.begin(),
+                                  factorIndicesToRemove.end());
 
   // Remove the marginalized variables
   removeVariables(KeySet(leafKeys.begin(), leafKeys.end()));
-
-  if (deletedFactorsIndices) {
-    deletedFactorsIndices->assign(factorIndicesToRemove.begin(),
-                                  factorIndicesToRemove.end());
-  }
-  if (marginalFactorsIndices){
-    *marginalFactorsIndices = std::move(newFactorIndices);
-  }
 }
 
 /* ************************************************************************* */
 // Marked const but actually changes mutable delta
 void ISAM2::updateDelta(bool forceFullSolve) const {
   gttic(updateDelta);
-  if (std::holds_alternative<ISAM2GaussNewtonParams>(params_.optimizationParams)) {
+  if (params_.optimizationParams.type() == typeid(ISAM2GaussNewtonParams)) {
     // If using Gauss-Newton, update with wildfireThreshold
     const ISAM2GaussNewtonParams& gaussNewtonParams =
-        std::get<ISAM2GaussNewtonParams>(params_.optimizationParams);
+        boost::get<ISAM2GaussNewtonParams>(params_.optimizationParams);
     const double effectiveWildfireThreshold =
         forceFullSolve ? 0.0 : gaussNewtonParams.wildfireThreshold;
     gttic(Wildfire_update);
@@ -731,10 +723,11 @@ void ISAM2::updateDelta(bool forceFullSolve) const {
                                       effectiveWildfireThreshold, &delta_);
     deltaReplacedMask_.clear();
     gttoc(Wildfire_update);
-  } else if (std::holds_alternative<ISAM2DoglegParams>(params_.optimizationParams)) {
+
+  } else if (params_.optimizationParams.type() == typeid(ISAM2DoglegParams)) {
     // If using Dogleg, do a Dogleg step
     const ISAM2DoglegParams& doglegParams =
-        std::get<ISAM2DoglegParams>(params_.optimizationParams);
+        boost::get<ISAM2DoglegParams>(params_.optimizationParams);
     const double effectiveWildfireThreshold =
         forceFullSolve ? 0.0 : doglegParams.wildfireThreshold;
 
@@ -781,8 +774,11 @@ void ISAM2::updateDelta(bool forceFullSolve) const {
 /* ************************************************************************* */
 Values ISAM2::calculateEstimate() const {
   gttic(ISAM2_calculateEstimate);
+    //std::cout << "getDelta " <<std::endl;
+
   const VectorValues& delta(getDelta());
   gttic(Expmap);
+      //std::cout << "retract " <<std::endl;
   return theta_.retract(delta);
   gttoc(Expmap);
 }

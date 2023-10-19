@@ -45,8 +45,8 @@ namespace gtsam {
  */
 template <typename Cal, size_t Dim>
 void calibrateJacobians(const Cal& calibration, const Point2& pn,
-                        OptionalJacobian<2, Dim> Dcal = {},
-                        OptionalJacobian<2, 2> Dp = {}) {
+                        OptionalJacobian<2, Dim> Dcal = boost::none,
+                        OptionalJacobian<2, 2> Dp = boost::none) {
   if (Dcal || Dp) {
     Eigen::Matrix<double, 2, Dim> H_uncal_K;
     Matrix22 H_uncal_pn, H_uncal_pn_inv;
@@ -75,7 +75,7 @@ class GTSAM_EXPORT Cal3 {
  public:
   enum { dimension = 5 };
   ///< shared pointer to calibration object
-  using shared_ptr = std::shared_ptr<Cal3>;
+  using shared_ptr = boost::shared_ptr<Cal3>;
 
   /// @name Standard Constructors
   /// @{
@@ -170,6 +170,11 @@ class GTSAM_EXPORT Cal3 {
     return K;
   }
 
+#ifdef GTSAM_ALLOW_DEPRECATED_SINCE_V42
+  /** @deprecated The following function has been deprecated, use K above */
+  Matrix3 GTSAM_DEPRECATED matrix() const { return K(); }
+#endif
+
   /// Return inverted calibration matrix inv(K)
   Matrix3 inverse() const;
 
@@ -184,7 +189,6 @@ class GTSAM_EXPORT Cal3 {
   /// @{
 
  private:
-#ifdef GTSAM_ENABLE_BOOST_SERIALIZATION  ///
   /// Serialization function
   friend class boost::serialization::access;
   template <class Archive>
@@ -195,7 +199,6 @@ class GTSAM_EXPORT Cal3 {
     ar& BOOST_SERIALIZATION_NVP(u0_);
     ar& BOOST_SERIALIZATION_NVP(v0_);
   }
-#endif
 
   /// @}
 };

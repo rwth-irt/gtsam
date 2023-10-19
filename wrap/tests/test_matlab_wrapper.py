@@ -20,7 +20,6 @@ class TestWrap(unittest.TestCase):
     """
     Test the Matlab wrapper
     """
-
     def setUp(self) -> None:
         super().setUp()
 
@@ -37,7 +36,7 @@ class TestWrap(unittest.TestCase):
         template_file = osp.join(self.TEST_DIR, "..", "gtwrap",
                                  "matlab_wrapper", "matlab_wrapper.tpl")
         if not osp.exists(template_file):
-            with open(template_file, 'w', encoding="UTF-8") as tpl:
+            with open(template_file, 'w') as tpl:
                 tpl.write("#include <gtwrap/matlab.h>\n#include <map>\n")
 
         # Create the `actual/matlab` directory
@@ -52,8 +51,8 @@ class TestWrap(unittest.TestCase):
         success = filecmp.cmp(actual, expected)
 
         if not success:
-            os.system(f"diff {actual} {expected}")
-        self.assertTrue(success, f"Mismatch for file {file}")
+            os.system("diff {} {}".format(actual, expected))
+        self.assertTrue(success, "Mismatch for file {0}".format(file))
 
     def test_geometry(self):
         """
@@ -64,10 +63,11 @@ class TestWrap(unittest.TestCase):
         file = osp.join(self.INTERFACE_DIR, 'geometry.i')
 
         # Create MATLAB wrapper instance
-        wrapper = MatlabWrapper(module_name='geometry',
-                                top_module_namespace=['gtsam'],
-                                ignore_classes=[''],
-                                use_boost_serialization=True)
+        wrapper = MatlabWrapper(
+            module_name='geometry',
+            top_module_namespace=['gtsam'],
+            ignore_classes=[''],
+        )
 
         wrapper.wrap([file], path=self.MATLAB_ACTUAL_DIR)
 
@@ -135,32 +135,6 @@ class TestWrap(unittest.TestCase):
             'PrimitiveRefDouble.m',
             'Test.m',
             'ForwardKinematics.m',
-        ]
-
-        for file in files:
-            actual = osp.join(self.MATLAB_ACTUAL_DIR, file)
-            self.compare_and_diff(file, actual)
-
-    def test_enum(self):
-        """Test interface file with only enum info."""
-        file = osp.join(self.INTERFACE_DIR, 'enum.i')
-
-        wrapper = MatlabWrapper(
-            module_name='enum',
-            top_module_namespace=['gtsam'],
-            ignore_classes=[''],
-        )
-
-        wrapper.wrap([file], path=self.MATLAB_ACTUAL_DIR)
-
-        files = [
-            'enum_wrapper.cpp',
-            'Color.m',
-            '+Pet/Kind.m',
-            '+gtsam/VerbosityLM.m',
-            '+gtsam/+MCU/Avengers.m',
-            '+gtsam/+MCU/GotG.m',
-            '+gtsam/+OptimizerGaussNewtonParams/Verbosity.m',
         ]
 
         for file in files:

@@ -24,7 +24,7 @@
 #include <gtsam/inference/Ordering.h>
 
 #include <algorithm>
-#include <memory>
+#include <boost/shared_ptr.hpp>
 #include <map>
 #include <stdexcept>
 #include <string>
@@ -34,7 +34,6 @@
 namespace gtsam {
 
   class DiscreteConditional;
-  class HybridValues;
 
   /**
    * A discrete probabilistic factor.
@@ -47,9 +46,13 @@ namespace gtsam {
     // typedefs needed to play nice with gtsam
     typedef DecisionTreeFactor This;
     typedef DiscreteFactor Base;  ///< Typedef to base class
-    typedef std::shared_ptr<DecisionTreeFactor> shared_ptr;
+    typedef boost::shared_ptr<DecisionTreeFactor> shared_ptr;
     typedef AlgebraicDecisionTree<Key> ADT;
 
+   protected:
+    std::map<Key, size_t> cardinalities_;
+
+   public:
     /// @name Standard Constructors
     /// @{
 
@@ -59,46 +62,11 @@ namespace gtsam {
     /** Constructor from DiscreteKeys and AlgebraicDecisionTree */
     DecisionTreeFactor(const DiscreteKeys& keys, const ADT& potentials);
 
-    /**
-     * @brief Constructor from doubles
-     *
-     * @param keys The discrete keys.
-     * @param table The table of values.
-     *
-     * @throw std::invalid_argument if the size of `table` does not match the
-     * number of assignments.
-     *
-     * Example:
-     * @code{.cpp}
-     * DiscreteKey X(0,2), Y(1,3);
-     * const std::vector<double> table {2, 5, 3, 6, 4, 7};
-     * DecisionTreeFactor f1({X, Y}, table);
-     * @endcode
-     *
-     * The values in the table should be laid out so that the first key varies
-     * the slowest, and the last key the fastest.
-     */
+    /** Constructor from doubles */
     DecisionTreeFactor(const DiscreteKeys& keys,
-                       const std::vector<double>& table);
+                      const std::vector<double>& table);
 
-    /**
-     * @brief Constructor from string
-     *
-     * @param keys The discrete keys.
-     * @param table The table of values.
-     *
-     * @throw std::invalid_argument if the size of `table` does not match the
-     * number of assignments.
-     *
-     * Example:
-     * @code{.cpp}
-     * DiscreteKey X(0,2), Y(1,3);
-     * DecisionTreeFactor factor({X, Y}, "2 5 3 6 4 7");
-     * @endcode
-     *
-     * The values in the table should be laid out so that the first key varies
-     * the slowest, and the last key the fastest.
-     */
+    /** Constructor from string */
     DecisionTreeFactor(const DiscreteKeys& keys, const std::string& table);
 
     /// Single-key specialization
@@ -129,19 +97,10 @@ namespace gtsam {
     /// @name Standard Interface
     /// @{
 
-    /// Calculate probability for given values `x`, 
-    /// is just look up in AlgebraicDecisionTree.
-    double evaluate(const DiscreteValues& values) const  {
-      return ADT::operator()(values);
-    }
-
-    /// Evaluate probability distribution, sugar.
+    /// Value is just look up in AlgebraicDecisonTree
     double operator()(const DiscreteValues& values) const override {
       return ADT::operator()(values);
     }
-
-    /// Calculate error for DiscreteValues `x`, is -log(probability).
-    double error(const DiscreteValues& values) const;
 
     /// multiply two factors
     DecisionTreeFactor operator*(const DecisionTreeFactor& f) const override {
@@ -149,6 +108,8 @@ namespace gtsam {
     }
 
     static double safe_div(const double& a, const double& b);
+
+    size_t cardinality(Key j) const { return cardinalities_.at(j); }
 
     /// divide by factor f (safely)
     DecisionTreeFactor operator/(const DecisionTreeFactor& f) const {
@@ -183,19 +144,6 @@ namespace gtsam {
     /// @{
 
     /**
-     * Apply unary operator (*this) "op" f
-     * @param op a unary operator that operates on AlgebraicDecisionTree
-     */
-    DecisionTreeFactor apply(ADT::Unary op) const;
-
-    /**
-     * Apply unary operator (*this) "op" f
-     * @param op a unary operator that operates on AlgebraicDecisionTree. Takes
-     * both the assignment and the value.
-     */
-    DecisionTreeFactor apply(ADT::UnaryAssignment op) const;
-
-    /**
      * Apply binary operator (*this) "op" f
      * @param f the second argument for op
      * @param op a binary operator that operates on AlgebraicDecisionTree
@@ -221,8 +169,8 @@ namespace gtsam {
     /// Enumerate all values into a map from values to double.
     std::vector<std::pair<DiscreteValues, double>> enumerate() const;
 
-    /// Get all the probabilities in order of assignment values
-    std::vector<double> probabilities() const;
+    /// Return all the discrete keys associated with this factor.
+    DiscreteKeys discreteKeys() const;
 
     /**
      * @brief Prune the decision tree of discrete variables.
@@ -282,31 +230,11 @@ namespace gtsam {
     std::string html(const KeyFormatter& keyFormatter = DefaultKeyFormatter,
                     const Names& names = {}) const override;
 
-  /// @}
-  /// @name HybridValues methods.
-  /// @{
-
-  /**
-   * Calculate error for HybridValues `x`, is -log(probability)
-   * Simply dispatches to DiscreteValues version.
-   */
-  double error(const HybridValues& values) const override;
-
-  /// @}
-
-   private:
-#ifdef GTSAM_ENABLE_BOOST_SERIALIZATION
-    /** Serialization function */
-    friend class boost::serialization::access;
-    template <class ARCHIVE>
-    void serialize(ARCHIVE& ar, const unsigned int /*version*/) {
-      ar& BOOST_SERIALIZATION_BASE_OBJECT_NVP(Base);
-      ar& BOOST_SERIALIZATION_BASE_OBJECT_NVP(ADT);
-    }
-#endif
+    /// @}
   };
 
 // traits
 template <>
 struct traits<DecisionTreeFactor> : public Testable<DecisionTreeFactor> {};
+
 }  // namespace gtsam

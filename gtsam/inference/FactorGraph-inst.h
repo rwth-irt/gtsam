@@ -61,16 +61,6 @@ bool FactorGraph<FACTOR>::equals(const This& fg, double tol) const {
   return true;
 }
 
-/* ************************************************************************ */
-template <class FACTOR>
-double FactorGraph<FACTOR>::error(const HybridValues &values) const {
-  double error = 0.0;
-  for (auto &f : factors_) {
-    error += f->error(values);
-  }
-  return error;
-}
-
 /* ************************************************************************* */
 template <class FACTOR>
 size_t FactorGraph<FACTOR>::nrFactors() const {
@@ -155,7 +145,7 @@ void FactorGraph<FACTOR>::dot(std::ostream& os,
     const auto& factor = at(i);
     if (factor) {
       const KeyVector& factorKeys = factor->keys();
-      writer.processFactor(i, factorKeys, keyFormatter, {}, &os);
+      writer.processFactor(i, factorKeys, keyFormatter, boost::none, &os);
     }
   }
 

@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include <gtsam/base/serialization.h>
 #include <gtsam/geometry/Point2.h>
 #include <gtsam/geometry/Point3.h>
 
@@ -157,10 +158,21 @@ struct GTSAM_EXPORT SfmTrack : SfmTrack2d {
   bool equals(const SfmTrack& sfmTrack, double tol = 1e-9) const;
 
   /// @}
+#ifdef GTSAM_ALLOW_DEPRECATED_SINCE_V42
+  /// @name Deprecated
+  /// @{
+  void GTSAM_DEPRECATED add_measurement(size_t idx, const gtsam::Point2& m) {
+    measurements.emplace_back(idx, m);
+  }
+
+  size_t GTSAM_DEPRECATED number_measurements() const {
+    return measurements.size();
+  }
+  /// @}
+#endif
   /// @name Serialization
   /// @{
 
-#ifdef GTSAM_ENABLE_BOOST_SERIALIZATION
   /** Serialization function */
   friend class boost::serialization::access;
   template <class ARCHIVE>
@@ -172,7 +184,6 @@ struct GTSAM_EXPORT SfmTrack : SfmTrack2d {
     ar& BOOST_SERIALIZATION_NVP(measurements);
     ar& BOOST_SERIALIZATION_NVP(siftIndices);
   }
-#endif
   /// @}
 };
 

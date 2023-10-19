@@ -39,8 +39,8 @@ namespace gtsam {
     typedef BayesNet<GaussianConditional> Base;
     typedef GaussianBayesNet This;
     typedef GaussianConditional ConditionalType;
-    typedef std::shared_ptr<This> shared_ptr;
-    typedef std::shared_ptr<ConditionalType> sharedConditional;
+    typedef boost::shared_ptr<This> shared_ptr;
+    typedef boost::shared_ptr<ConditionalType> sharedConditional;
 
     /// @name Standard Constructors
     /// @{
@@ -65,14 +65,8 @@ namespace gtsam {
     explicit GaussianBayesNet(const FactorGraph<DERIVEDCONDITIONAL>& graph)
         : Base(graph) {}
 
-    /**
-     * Constructor that takes an initializer list of shared pointers.
-     *  BayesNet bn = {make_shared<Conditional>(), ...};
-     */
-    template <class DERIVEDCONDITIONAL>
-    GaussianBayesNet(
-        std::initializer_list<std::shared_ptr<DERIVEDCONDITIONAL> > conditionals)
-        : Base(conditionals) {}
+    /// Destructor
+    virtual ~GaussianBayesNet() {}
 
     /// @}
 
@@ -94,30 +88,12 @@ namespace gtsam {
     /// @name Standard Interface
     /// @{
 
-    /// Sum error over all variables.
-    double error(const VectorValues& x) const;
-
-    /// Sum logProbability over all variables.
-    double logProbability(const VectorValues& x) const;
-
-    /**
-     * Calculate probability density for given values `x`:
-     *   exp(logProbability)
-     * where x is the vector of values.
-     */
-    double evaluate(const VectorValues& x) const;
-
-    /// Evaluate probability density, sugar.
-    double operator()(const VectorValues& x) const {
-      return evaluate(x);
-    }
-
     /// Solve the GaussianBayesNet, i.e. return \f$ x = R^{-1}*d \f$, by
     /// back-substitution
     VectorValues optimize() const;
 
     /// Version of optimize for incomplete BayesNet, given missing variables
-    VectorValues optimize(const VectorValues& given) const;
+    VectorValues optimize(const VectorValues given) const;
 
     /**
      * Sample using ancestral sampling
@@ -134,13 +110,13 @@ namespace gtsam {
      *   VectorValues given = ...;
      *   auto sample = gbn.sample(given, &rng);
      */
-    VectorValues sample(const VectorValues& given, std::mt19937_64* rng) const;
+    VectorValues sample(VectorValues given, std::mt19937_64* rng) const;
 
     /// Sample using ancestral sampling, use default rng
     VectorValues sample() const;
 
     /// Sample from an incomplete BayesNet, use default rng
-    VectorValues sample(const VectorValues& given) const;
+    VectorValues sample(VectorValues given) const;
 
     /**
      * Return ordering corresponding to a topological sort.
@@ -211,6 +187,9 @@ namespace gtsam {
      *        allocateVectorValues */
     VectorValues gradientAtZero() const;
 
+    /** 0.5 * sum of squared Mahalanobis distances. */
+    double error(const VectorValues& x) const;
+
     /**
      * Computes the determinant of a GassianBayesNet. A GaussianBayesNet is an upper triangular
      * matrix and for an upper triangular matrix determinant is the product of the diagonal
@@ -243,24 +222,14 @@ namespace gtsam {
     VectorValues backSubstituteTranspose(const VectorValues& gx) const;
 
     /// @}
-    /// @name HybridValues methods.
-    /// @{
-
-    using Base::evaluate; // Expose evaluate(const HybridValues&) method..
-    using Base::logProbability; // Expose logProbability(const HybridValues&) method..
-    using Base::error; // Expose error(const HybridValues&) method..
-
-    /// @}
 
   private:
-#ifdef GTSAM_ENABLE_BOOST_SERIALIZATION
     /** Serialization function */
     friend class boost::serialization::access;
     template<class ARCHIVE>
     void serialize(ARCHIVE & ar, const unsigned int /*version*/) {
       ar & BOOST_SERIALIZATION_BASE_OBJECT_NVP(Base);
     }
-#endif
   };
 
   /// traits

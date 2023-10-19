@@ -111,7 +111,8 @@ TEST(HybridGaussianElimination, IncrementalInference) {
   // Run update step
   isam.update(graph1);
 
-  auto discreteConditional_m0 = isam[M(0)]->conditional()->asDiscrete();
+  auto discreteConditional_m0 =
+      isam[M(0)]->conditional()->asDiscreteConditional();
   EXPECT(discreteConditional_m0->keys() == KeyVector({M(0)}));
 
   /********************************************************/
@@ -126,10 +127,15 @@ TEST(HybridGaussianElimination, IncrementalInference) {
 
   /********************************************************/
   // Run batch elimination so we can compare results.
-  const Ordering ordering {X(0), X(1), X(2)};
+  Ordering ordering;
+  ordering += X(0);
+  ordering += X(1);
+  ordering += X(2);
 
   // Now we calculate the expected factors using full elimination
-  const auto [expectedHybridBayesTree, expectedRemainingGraph] =
+  HybridBayesTree::shared_ptr expectedHybridBayesTree;
+  HybridGaussianFactorGraph::shared_ptr expectedRemainingGraph;
+  std::tie(expectedHybridBayesTree, expectedRemainingGraph) =
       switching.linearizedFactorGraph.eliminatePartialMultifrontal(ordering);
 
   // The densities on X(0) should be the same
@@ -155,47 +161,44 @@ TEST(HybridGaussianElimination, IncrementalInference) {
 
   // We only perform manual continuous elimination for 0,0.
   // The other discrete probabilities on M(2) are calculated the same way
-  const Ordering discreteOrdering{M(0), M(1)};
+  Ordering discrete_ordering;
+  discrete_ordering += M(0);
+  discrete_ordering += M(1);
   HybridBayesTree::shared_ptr discreteBayesTree =
-      expectedRemainingGraph->BaseEliminateable::eliminateMultifrontal(
-          discreteOrdering);
+      expectedRemainingGraph->eliminateMultifrontal(discrete_ordering);
 
   DiscreteValues m00;
   m00[M(0)] = 0, m00[M(1)] = 0;
   DiscreteConditional decisionTree =
-      *(*discreteBayesTree)[M(1)]->conditional()->asDiscrete();
+      *(*discreteBayesTree)[M(1)]->conditional()->asDiscreteConditional();
   double m00_prob = decisionTree(m00);
 
-  auto discreteConditional = isam[M(1)]->conditional()->asDiscrete();
+  auto discreteConditional = isam[M(1)]->conditional()->asDiscreteConditional();
 
-  // Test the probability values with regression tests.
+  // Test if the probability values are as expected with regression tests.
   DiscreteValues assignment;
-  EXPECT(assert_equal(0.0952922, m00_prob, 1e-5));
+  EXPECT(assert_equal(m00_prob, 0.0619233, 1e-5));
   assignment[M(0)] = 0;
   assignment[M(1)] = 0;
-  EXPECT(assert_equal(0.0952922, (*discreteConditional)(assignment), 1e-5));
+  EXPECT(assert_equal(m00_prob, (*discreteConditional)(assignment), 1e-5));
   assignment[M(0)] = 1;
   assignment[M(1)] = 0;
-  EXPECT(assert_equal(0.282758, (*discreteConditional)(assignment), 1e-5));
+  EXPECT(assert_equal(0.183743, (*discreteConditional)(assignment), 1e-5));
   assignment[M(0)] = 0;
   assignment[M(1)] = 1;
-  EXPECT(assert_equal(0.314175, (*discreteConditional)(assignment), 1e-5));
+  EXPECT(assert_equal(0.204159, (*discreteConditional)(assignment), 1e-5));
   assignment[M(0)] = 1;
   assignment[M(1)] = 1;
-  EXPECT(assert_equal(0.307775, (*discreteConditional)(assignment), 1e-5));
+  EXPECT(assert_equal(0.2, (*discreteConditional)(assignment), 1e-5));
 
   // Check if the clique conditional generated from incremental elimination
   // matches that of batch elimination.
-  auto expectedChordal =
-      expectedRemainingGraph->BaseEliminateable::eliminateMultifrontal();
+  auto expectedChordal = expectedRemainingGraph->eliminateMultifrontal();
+  auto expectedConditional = dynamic_pointer_cast<DecisionTreeFactor>(
+      (*expectedChordal)[M(1)]->conditional()->inner());
   auto actualConditional = dynamic_pointer_cast<DecisionTreeFactor>(
       isam[M(1)]->conditional()->inner());
-  // Account for the probability terms from evaluating continuous FGs
-  DiscreteKeys discrete_keys = {{M(0), 2}, {M(1), 2}};
-  vector<double> probs = {0.095292197, 0.31417524, 0.28275772, 0.30777485};
-  auto expectedConditional =
-      std::make_shared<DecisionTreeFactor>(discrete_keys, probs);
-  EXPECT(assert_equal(*expectedConditional, *actualConditional, 1e-6));
+  EXPECT(assert_equal(*actualConditional, *expectedConditional, 1e-6));
 }
 
 /* ****************************************************************************/
@@ -220,11 +223,13 @@ TEST(HybridGaussianElimination, Approx_inference) {
   // Create ordering.
   Ordering ordering;
   for (size_t j = 0; j < 4; j++) {
-    ordering.push_back(X(j));
+    ordering += X(j);
   }
 
   // Now we calculate the actual factors using full elimination
-  const auto [unprunedHybridBayesTree, unprunedRemainingGraph] =
+  HybridBayesTree::shared_ptr unprunedHybridBayesTree;
+  HybridGaussianFactorGraph::shared_ptr unprunedRemainingGraph;
+  std::tie(unprunedHybridBayesTree, unprunedRemainingGraph) =
       switching.linearizedFactorGraph.eliminatePartialMultifrontal(ordering);
 
   size_t maxNrLeaves = 5;
@@ -371,7 +376,7 @@ TEST(HybridGaussianISAM, NonTrivial) {
   Pose2 prior(0.0, 0.0, 0.0);  // prior mean is at origin
   auto priorNoise = noiseModel::Diagonal::Sigmas(
       Vector3(0.3, 0.3, 0.1));  // 30cm std on x,y, 0.1 rad on theta
-  fg.emplace_shared<PriorFactor<Pose2>>(X(0), prior, priorNoise);
+  fg.emplace_nonlinear<PriorFactor<Pose2>>(X(0), prior, priorNoise);
 
   // create a noise model for the landmark measurements
   auto poseNoise = noiseModel::Isotropic::Sigma(3, 0.1);
@@ -380,11 +385,11 @@ TEST(HybridGaussianISAM, NonTrivial) {
   // where X is the base link and W is the foot link.
 
   // Add connecting poses similar to PoseFactors in GTD
-  fg.emplace_shared<BetweenFactor<Pose2>>(X(0), Y(0), Pose2(0, 1.0, 0),
+  fg.emplace_nonlinear<BetweenFactor<Pose2>>(X(0), Y(0), Pose2(0, 1.0, 0),
                                              poseNoise);
-  fg.emplace_shared<BetweenFactor<Pose2>>(Y(0), Z(0), Pose2(0, 1.0, 0),
+  fg.emplace_nonlinear<BetweenFactor<Pose2>>(Y(0), Z(0), Pose2(0, 1.0, 0),
                                              poseNoise);
-  fg.emplace_shared<BetweenFactor<Pose2>>(Z(0), W(0), Pose2(0, 1.0, 0),
+  fg.emplace_nonlinear<BetweenFactor<Pose2>>(Z(0), W(0), Pose2(0, 1.0, 0),
                                              poseNoise);
 
   // Create initial estimate
@@ -413,24 +418,24 @@ TEST(HybridGaussianISAM, NonTrivial) {
   Pose2 odometry(1.0, 0.0, 0.0);
   KeyVector contKeys = {W(0), W(1)};
   auto noise_model = noiseModel::Isotropic::Sigma(3, 1.0);
-  auto still = std::make_shared<PlanarMotionModel>(W(0), W(1), Pose2(0, 0, 0),
+  auto still = boost::make_shared<PlanarMotionModel>(W(0), W(1), Pose2(0, 0, 0),
                                                      noise_model),
-       moving = std::make_shared<PlanarMotionModel>(W(0), W(1), odometry,
+       moving = boost::make_shared<PlanarMotionModel>(W(0), W(1), odometry,
                                                       noise_model);
   std::vector<PlanarMotionModel::shared_ptr> components = {moving, still};
-  auto mixtureFactor = std::make_shared<MixtureFactor>(
+  auto mixtureFactor = boost::make_shared<MixtureFactor>(
       contKeys, DiscreteKeys{gtsam::DiscreteKey(M(1), 2)}, components);
   fg.push_back(mixtureFactor);
 
   // Add equivalent of ImuFactor
-  fg.emplace_shared<BetweenFactor<Pose2>>(X(0), X(1), Pose2(1.0, 0.0, 0),
+  fg.emplace_nonlinear<BetweenFactor<Pose2>>(X(0), X(1), Pose2(1.0, 0.0, 0),
                                              poseNoise);
   // PoseFactors-like at k=1
-  fg.emplace_shared<BetweenFactor<Pose2>>(X(1), Y(1), Pose2(0, 1, 0),
+  fg.emplace_nonlinear<BetweenFactor<Pose2>>(X(1), Y(1), Pose2(0, 1, 0),
                                              poseNoise);
-  fg.emplace_shared<BetweenFactor<Pose2>>(Y(1), Z(1), Pose2(0, 1, 0),
+  fg.emplace_nonlinear<BetweenFactor<Pose2>>(Y(1), Z(1), Pose2(0, 1, 0),
                                              poseNoise);
-  fg.emplace_shared<BetweenFactor<Pose2>>(Z(1), W(1), Pose2(-1, 1, 0),
+  fg.emplace_nonlinear<BetweenFactor<Pose2>>(Z(1), W(1), Pose2(-1, 1, 0),
                                              poseNoise);
 
   initial.insert(X(1), Pose2(1.0, 0.0, 0.0));
@@ -453,24 +458,24 @@ TEST(HybridGaussianISAM, NonTrivial) {
   /*************** Run Round 3 ***************/
   // Add odometry factor with discrete modes.
   contKeys = {W(1), W(2)};
-  still = std::make_shared<PlanarMotionModel>(W(1), W(2), Pose2(0, 0, 0),
+  still = boost::make_shared<PlanarMotionModel>(W(1), W(2), Pose2(0, 0, 0),
                                                 noise_model);
   moving =
-      std::make_shared<PlanarMotionModel>(W(1), W(2), odometry, noise_model);
+      boost::make_shared<PlanarMotionModel>(W(1), W(2), odometry, noise_model);
   components = {moving, still};
-  mixtureFactor = std::make_shared<MixtureFactor>(
+  mixtureFactor = boost::make_shared<MixtureFactor>(
       contKeys, DiscreteKeys{gtsam::DiscreteKey(M(2), 2)}, components);
   fg.push_back(mixtureFactor);
 
   // Add equivalent of ImuFactor
-  fg.emplace_shared<BetweenFactor<Pose2>>(X(1), X(2), Pose2(1.0, 0.0, 0),
+  fg.emplace_nonlinear<BetweenFactor<Pose2>>(X(1), X(2), Pose2(1.0, 0.0, 0),
                                              poseNoise);
   // PoseFactors-like at k=1
-  fg.emplace_shared<BetweenFactor<Pose2>>(X(2), Y(2), Pose2(0, 1, 0),
+  fg.emplace_nonlinear<BetweenFactor<Pose2>>(X(2), Y(2), Pose2(0, 1, 0),
                                              poseNoise);
-  fg.emplace_shared<BetweenFactor<Pose2>>(Y(2), Z(2), Pose2(0, 1, 0),
+  fg.emplace_nonlinear<BetweenFactor<Pose2>>(Y(2), Z(2), Pose2(0, 1, 0),
                                              poseNoise);
-  fg.emplace_shared<BetweenFactor<Pose2>>(Z(2), W(2), Pose2(-2, 1, 0),
+  fg.emplace_nonlinear<BetweenFactor<Pose2>>(Z(2), W(2), Pose2(-2, 1, 0),
                                              poseNoise);
 
   initial.insert(X(2), Pose2(2.0, 0.0, 0.0));
@@ -496,24 +501,24 @@ TEST(HybridGaussianISAM, NonTrivial) {
   /*************** Run Round 4 ***************/
   // Add odometry factor with discrete modes.
   contKeys = {W(2), W(3)};
-  still = std::make_shared<PlanarMotionModel>(W(2), W(3), Pose2(0, 0, 0),
+  still = boost::make_shared<PlanarMotionModel>(W(2), W(3), Pose2(0, 0, 0),
                                                 noise_model);
   moving =
-      std::make_shared<PlanarMotionModel>(W(2), W(3), odometry, noise_model);
+      boost::make_shared<PlanarMotionModel>(W(2), W(3), odometry, noise_model);
   components = {moving, still};
-  mixtureFactor = std::make_shared<MixtureFactor>(
+  mixtureFactor = boost::make_shared<MixtureFactor>(
       contKeys, DiscreteKeys{gtsam::DiscreteKey(M(3), 2)}, components);
   fg.push_back(mixtureFactor);
 
   // Add equivalent of ImuFactor
-  fg.emplace_shared<BetweenFactor<Pose2>>(X(2), X(3), Pose2(1.0, 0.0, 0),
+  fg.emplace_nonlinear<BetweenFactor<Pose2>>(X(2), X(3), Pose2(1.0, 0.0, 0),
                                              poseNoise);
   // PoseFactors-like at k=3
-  fg.emplace_shared<BetweenFactor<Pose2>>(X(3), Y(3), Pose2(0, 1, 0),
+  fg.emplace_nonlinear<BetweenFactor<Pose2>>(X(3), Y(3), Pose2(0, 1, 0),
                                              poseNoise);
-  fg.emplace_shared<BetweenFactor<Pose2>>(Y(3), Z(3), Pose2(0, 1, 0),
+  fg.emplace_nonlinear<BetweenFactor<Pose2>>(Y(3), Z(3), Pose2(0, 1, 0),
                                              poseNoise);
-  fg.emplace_shared<BetweenFactor<Pose2>>(Z(3), W(3), Pose2(-3, 1, 0),
+  fg.emplace_nonlinear<BetweenFactor<Pose2>>(Z(3), W(3), Pose2(-3, 1, 0),
                                              poseNoise);
 
   initial.insert(X(3), Pose2(3.0, 0.0, 0.0));
@@ -530,7 +535,7 @@ TEST(HybridGaussianISAM, NonTrivial) {
 
   // The final discrete graph should not be empty since we have eliminated
   // all continuous variables.
-  auto discreteTree = inc[M(3)]->conditional()->asDiscrete();
+  auto discreteTree = inc[M(3)]->conditional()->asDiscreteConditional();
   EXPECT_LONGS_EQUAL(3, discreteTree->size());
 
   // Test if the optimal discrete mode assignment is (1, 1, 1).

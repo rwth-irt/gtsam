@@ -48,16 +48,9 @@ public:
          */
         if (auto cfunc = func.cpp_function()) {
             auto *cfunc_self = PyCFunction_GET_SELF(cfunc.ptr());
-            if (cfunc_self == nullptr) {
-                PyErr_Clear();
-            } else if (isinstance<capsule>(cfunc_self)) {
+            if (isinstance<capsule>(cfunc_self)) {
                 auto c = reinterpret_borrow<capsule>(cfunc_self);
-
-                function_record *rec = nullptr;
-                // Check that we can safely reinterpret the capsule into a function_record
-                if (detail::is_function_record_capsule(c)) {
-                    rec = c.get_pointer<function_record>();
-                }
+                auto *rec = (function_record *) c;
 
                 while (rec != nullptr) {
                     if (rec->is_stateless
@@ -117,7 +110,7 @@ public:
     template <typename Func>
     static handle cast(Func &&f_, return_value_policy policy, handle /* parent */) {
         if (!f_) {
-            return none().release();
+            return none().inc_ref();
         }
 
         auto result = f_.template target<function_type>();

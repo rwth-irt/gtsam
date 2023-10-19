@@ -12,8 +12,14 @@
 #include <gtsam/base/debug.h>
 #include <gtsam/base/timing.h>
 
+#include <boost/assign/std/vector.hpp>
+#include <boost/assign/std/map.hpp>
+#include <boost/optional.hpp>
+#include <boost/format.hpp>
+
 #include <algorithm>
 
+using namespace boost::assign;
 using namespace std;
 using namespace gtsam;
 
@@ -176,6 +182,9 @@ void solveStaged(size_t addMutex = 2) {
     gttoc_(eliminate);
 
     // find root node
+//    chordal->back()->print("back: ");
+//    chordal->front()->print("front: ");
+//    exit(0);
     DiscreteConditional::shared_ptr root = chordal->back();
     if (debug)
       root->print(""/*scheduler.studentName(s)*/);
@@ -191,9 +200,8 @@ void solveStaged(size_t addMutex = 2) {
 
     // remove this slot from consideration
     slotsAvailable[bestSlot] = 0.0;
-    cout << scheduler.studentName(NRSTUDENTS - 1 - s) << " = " << 
-      scheduler.slotName(bestSlot) << " (" << bestSlot
-         << "), count = " << count << endl;
+    cout << boost::format("%s = %d (%d), count = %d") % scheduler.studentName(NRSTUDENTS-1-s)
+        % scheduler.slotName(bestSlot) % bestSlot % count << endl;
   }
   tictoc_print_();
 }
@@ -207,6 +215,7 @@ DiscreteBayesNet::shared_ptr createSampler(size_t i,
   SETDEBUG("Scheduler::buildGraph", false);
   scheduler.addStudentSpecificConstraints(0, slot);
   DiscreteBayesNet::shared_ptr chordal = scheduler.eliminate();
+  // chordal->print(scheduler[i].studentKey(0).name()); // large !
   schedulers.push_back(scheduler);
   return chordal;
 }
@@ -217,7 +226,8 @@ void sampleSolutions() {
   vector<DiscreteBayesNet::shared_ptr> samplers(NRSTUDENTS);
 
   // Given the time-slots, we can create NRSTUDENTS independent samplers
-  vector<size_t> slots{3, 20, 2, 6, 5, 11, 1, 4}; // given slots
+  vector<size_t> slots;
+  slots += 3, 20, 2, 6, 5, 11, 1, 4; // given slots
   for (size_t i = 0; i < NRSTUDENTS; i++)
     samplers[i] = createSampler(i, slots[i], schedulers);
 
@@ -233,8 +243,9 @@ void sampleSolutions() {
     size_t min = *min_element(stats.begin(), stats.end());
     size_t nz = count_if(stats.begin(), stats.end(), NonZero);
     if (nz >= 15 && max <= 2) {
-      cout << "Sampled schedule " << (n + 1) << ", min = " << min
-        << ", nz = " << nz << ", max = " << max << endl;
+      cout << boost::format(
+          "Sampled schedule %d, min = %d, nz = %d, max = %d\n") % (n + 1) % min
+          % nz % max;
       for (size_t i = 0; i < NRSTUDENTS; i++) {
         cout << schedulers[i].studentName(0) << " : " << schedulers[i].slotName(
             slots[i]) << endl;

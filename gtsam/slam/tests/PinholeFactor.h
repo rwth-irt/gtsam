@@ -35,13 +35,13 @@ class PinholeFactor : public SmartFactorBase<PinholeCamera<Cal3Bundler> > {
   typedef SmartFactorBase<PinholeCamera<Cal3Bundler> > Base;
   PinholeFactor() {}
   PinholeFactor(const SharedNoiseModel& sharedNoiseModel,
-                std::optional<Pose3> body_P_sensor = {},
+                boost::optional<Pose3> body_P_sensor = boost::none,
                 size_t expectedNumberCameras = 10)
       : Base(sharedNoiseModel, body_P_sensor, expectedNumberCameras) {}
   double error(const Values& values) const override { return 0.0; }
-  std::shared_ptr<GaussianFactor> linearize(
+  boost::shared_ptr<GaussianFactor> linearize(
       const Values& values) const override {
-    return std::shared_ptr<GaussianFactor>(new JacobianFactor());
+    return boost::shared_ptr<GaussianFactor>(new JacobianFactor());
   }
 };
 

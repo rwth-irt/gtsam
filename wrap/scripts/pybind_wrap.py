@@ -34,9 +34,9 @@ def main():
         help="Name of the output pybind .cc file(s)",
     )
     arg_parser.add_argument(
-        "--use-boost-serialization",
+        "--use-boost",
         action="store_true",
-        help="Allow boost based serialization methods",
+        help="using boost's shared_ptr instead of std's",
     )
     arg_parser.add_argument(
         "--top_module_namespaces",
@@ -70,12 +70,12 @@ def main():
     if top_module_namespaces[0]:
         top_module_namespaces = [''] + top_module_namespaces
 
-    with open(args.template, "r", encoding="UTF-8") as f:
+    with open(args.template, "r") as f:
         template_content = f.read()
 
     wrapper = PybindWrapper(
         module_name=args.module_name,
-        use_boost_serialization=args.use_boost_serialization,
+        use_boost=args.use_boost,
         top_module_namespaces=top_module_namespaces,
         ignore_classes=args.ignore,
         module_template=template_content,

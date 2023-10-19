@@ -27,6 +27,8 @@
 #include <gtsam/nonlinear/ISAM2Params.h>
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
 
+#include <boost/variant.hpp>
+
 namespace gtsam {
 
 /**
@@ -49,7 +51,7 @@ struct ISAM2Result {
    * ISAM2Params::evaluateNonlinearError is set to \c true, because there is
    * some cost to this computation.
    */
-  std::optional<double> errorBefore;
+  boost::optional<double> errorBefore;
 
   /** The nonlinear error of all of the factors computed after the current
    * update, meaning that variables above the relinearization threshold
@@ -61,7 +63,7 @@ struct ISAM2Result {
    * ISAM2Params::evaluateNonlinearError is set to \c true, because there is
    * some cost to this computation.
    */
-  std::optional<double> errorAfter;
+  boost::optional<double> errorAfter;
 
   /** The number of variables that were relinearized because their linear
    * deltas exceeded the reslinearization threshold
@@ -153,20 +155,14 @@ struct ISAM2Result {
 
   /** Detailed results, if enabled by ISAM2Params::enableDetailedResults.  See
    * Detail for information about the results data stored here. */
-  std::optional<DetailedResults> detail;
+  boost::optional<DetailedResults> detail;
 
   explicit ISAM2Result(bool enableDetailedResults = false) {
-    if (enableDetailedResults) detail = DetailedResults();
+    if (enableDetailedResults) detail.reset(DetailedResults());
   }
 
   /// Return pointer to detail, 0 if no detail requested
-  DetailedResults* details() {
-    if (detail.has_value()) {
-      return &(*detail);
-    } else {
-      return nullptr;
-    }
-  }
+  DetailedResults* details() { return detail.get_ptr(); }
 
   /// Print results
   void print(const std::string str = "") const {

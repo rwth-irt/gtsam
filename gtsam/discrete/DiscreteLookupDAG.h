@@ -21,7 +21,7 @@
 #include <gtsam/inference/BayesNet.h>
 #include <gtsam/inference/FactorGraph.h>
 
-#include <memory>
+#include <boost/shared_ptr.hpp>
 #include <string>
 #include <utility>
 #include <vector>
@@ -40,7 +40,7 @@ class DiscreteBayesNet;
 class GTSAM_EXPORT DiscreteLookupTable : public DiscreteConditional {
  public:
   using This = DiscreteLookupTable;
-  using shared_ptr = std::shared_ptr<This>;
+  using shared_ptr = boost::shared_ptr<This>;
   using BaseConditional = Conditional<DecisionTreeFactor, This>;
 
   /**
@@ -78,7 +78,7 @@ class GTSAM_EXPORT DiscreteLookupDAG : public BayesNet<DiscreteLookupTable> {
  public:
   using Base = BayesNet<DiscreteLookupTable>;
   using This = DiscreteLookupDAG;
-  using shared_ptr = std::shared_ptr<This>;
+  using shared_ptr = boost::shared_ptr<This>;
 
   /// @name Standard Constructors
   /// @{
@@ -88,6 +88,9 @@ class GTSAM_EXPORT DiscreteLookupDAG : public BayesNet<DiscreteLookupTable> {
 
   /// Create from BayesNet with LookupTables
   static DiscreteLookupDAG FromBayesNet(const DiscreteBayesNet& bayesNet);
+
+  /// Destructor
+  virtual ~DiscreteLookupDAG() {}
 
   /// @}
 
@@ -123,14 +126,12 @@ class GTSAM_EXPORT DiscreteLookupDAG : public BayesNet<DiscreteLookupTable> {
   /// @}
 
  private:
-#ifdef GTSAM_ENABLE_BOOST_SERIALIZATION
   /** Serialization function */
   friend class boost::serialization::access;
   template <class ARCHIVE>
   void serialize(ARCHIVE& ar, const unsigned int /*version*/) {
     ar& BOOST_SERIALIZATION_BASE_OBJECT_NVP(Base);
   }
-#endif
 };
 
 // traits

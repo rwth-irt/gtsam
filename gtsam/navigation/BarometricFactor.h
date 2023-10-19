@@ -31,19 +31,15 @@ namespace gtsam {
  * https://www.grc.nasa.gov/www/k-12/airplane/atmosmet.html
  * @ingroup navigation
  */
-class GTSAM_EXPORT BarometricFactor : public NoiseModelFactorN<Pose3, double> {
+class GTSAM_EXPORT BarometricFactor : public NoiseModelFactor2<Pose3, double> {
    private:
-    typedef NoiseModelFactorN<Pose3, double> Base;
+    typedef NoiseModelFactor2<Pose3, double> Base;
 
     double nT_;  ///< Height Measurement based on a standard atmosphere
 
    public:
-
-    // Provide access to the Matrix& version of evaluateError:
-    using Base::evaluateError;
-
     /// shorthand for a smart pointer to a factor
-    typedef std::shared_ptr<BarometricFactor> shared_ptr;
+    typedef boost::shared_ptr<BarometricFactor> shared_ptr;
 
     /// Typedef to this class
     typedef BarometricFactor This;
@@ -66,7 +62,7 @@ class GTSAM_EXPORT BarometricFactor : public NoiseModelFactorN<Pose3, double> {
 
     /// @return a deep copy of this factor
     gtsam::NonlinearFactor::shared_ptr clone() const override {
-        return std::static_pointer_cast<gtsam::NonlinearFactor>(
+        return boost::static_pointer_cast<gtsam::NonlinearFactor>(
             gtsam::NonlinearFactor::shared_ptr(new This(*this)));
     }
 
@@ -80,8 +76,10 @@ class GTSAM_EXPORT BarometricFactor : public NoiseModelFactorN<Pose3, double> {
                 double tol = 1e-9) const override;
 
     /// vector of errors
-    Vector evaluateError(const Pose3& p, const double& b, 
-            OptionalMatrixType H, OptionalMatrixType H2) const override;
+    Vector evaluateError(
+        const Pose3& p, const double& b,
+        boost::optional<Matrix&> H = boost::none,
+        boost::optional<Matrix&> H2 = boost::none) const override;
 
     inline const double& measurementIn() const { return nT_; }
 
@@ -89,26 +87,23 @@ class GTSAM_EXPORT BarometricFactor : public NoiseModelFactorN<Pose3, double> {
         // From https://www.grc.nasa.gov/www/k-12/airplane/atmosmet.html
         return (std::pow(n / 101.29, 1. / 5.256) * 288.08 - 273.1 - 15.04) /
                -0.00649;
-    }
+    };
 
     inline double baroOut(const double& meters) {
         double temp = 15.04 - 0.00649 * meters;
         return 101.29 * std::pow(((temp + 273.1) / 288.08), 5.256);
-    }
+    };
 
    private:
-#ifdef GTSAM_ENABLE_BOOST_SERIALIZATION    ///
     /// Serialization function
     friend class boost::serialization::access;
     template <class ARCHIVE>
     void serialize(ARCHIVE& ar, const unsigned int /*version*/) {
-        // NoiseModelFactor1 instead of NoiseModelFactorN for backward compatibility
         ar& boost::serialization::make_nvp(
             "NoiseModelFactor1",
             boost::serialization::base_object<Base>(*this));
         ar& BOOST_SERIALIZATION_NVP(nT_);
     }
-#endif
 };
 
 }  // namespace gtsam

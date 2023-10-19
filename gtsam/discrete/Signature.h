@@ -19,13 +19,13 @@
 #pragma once
 #include <string>
 #include <vector>
-#include <optional>
+#include <boost/optional.hpp>
 #include <gtsam/discrete/DiscreteKey.h>
 
 namespace gtsam {
 
   /**
-   * Signature for a discrete conditional distribution, used to construct conditionals.
+   * Signature for a discrete conditional density, used to construct conditionals.
    *
    * The format is (Key % string) for nodes with no parents,
    * and (Key | Key, Key = string) for nodes with parents.
@@ -68,10 +68,10 @@ namespace gtsam {
     DiscreteKeys parents_;
 
     // the given CPT specification string
-    std::optional<std::string> spec_;
+    boost::optional<std::string> spec_;
 
     // the CPT as parsed, if successful
-    std::optional<Table> table_;
+    boost::optional<Table> table_;
 
   public:
    /**
@@ -124,7 +124,7 @@ namespace gtsam {
    KeyVector indices() const;
 
    // the CPT as parsed, if successful
-   const std::optional<Table>& table() const { return table_; }
+   const boost::optional<Table>& table() const { return table_; }
 
    // the CPT as a vector of doubles, with key's values most rapidly changing
    std::vector<double> cpt() const;

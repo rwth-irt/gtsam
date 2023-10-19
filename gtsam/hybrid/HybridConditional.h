@@ -25,7 +25,8 @@
 #include <gtsam/inference/Key.h>
 #include <gtsam/linear/GaussianConditional.h>
 
-#include <memory>
+#include <boost/make_shared.hpp>
+#include <boost/shared_ptr.hpp>
 #include <stdexcept>
 #include <string>
 #include <typeinfo>
@@ -51,7 +52,7 @@ namespace gtsam {
  * having diamond inheritances, and neutralized the need to change other
  * components of GTSAM to make hybrid elimination work.
  *
- * A great reference to the type-erasure pattern is Eduardo Madrid's CppCon
+ * A great reference to the type-erasure pattern is Eduaado Madrid's CppCon
  * talk (https://www.youtube.com/watch?v=s082Qmd_nHs).
  *
  * @ingroup hybrid
@@ -62,14 +63,14 @@ class GTSAM_EXPORT HybridConditional
  public:
   // typedefs needed to play nice with gtsam
   typedef HybridConditional This;              ///< Typedef to this class
-  typedef std::shared_ptr<This> shared_ptr;  ///< shared_ptr to this class
+  typedef boost::shared_ptr<This> shared_ptr;  ///< shared_ptr to this class
   typedef HybridFactor BaseFactor;  ///< Typedef to our factor base class
   typedef Conditional<BaseFactor, This>
       BaseConditional;  ///< Typedef to our conditional base class
 
  protected:
   /// Type-erased pointer to the inner type
-  std::shared_ptr<Factor> inner_;
+  boost::shared_ptr<Factor> inner_;
 
  public:
   /// @name Standard Constructors
@@ -110,7 +111,7 @@ class GTSAM_EXPORT HybridConditional
    * HybridConditional.
    */
   HybridConditional(
-      const std::shared_ptr<GaussianConditional>& continuousConditional);
+      boost::shared_ptr<GaussianConditional> continuousConditional);
 
   /**
    * @brief Construct a new Hybrid Conditional object
@@ -118,8 +119,7 @@ class GTSAM_EXPORT HybridConditional
    * @param discreteConditional Conditional used to create the
    * HybridConditional.
    */
-  HybridConditional(
-      const std::shared_ptr<DiscreteConditional>& discreteConditional);
+  HybridConditional(boost::shared_ptr<DiscreteConditional> discreteConditional);
 
   /**
    * @brief Construct a new Hybrid Conditional object
@@ -127,7 +127,39 @@ class GTSAM_EXPORT HybridConditional
    * @param gaussianMixture Gaussian Mixture Conditional used to create the
    * HybridConditional.
    */
-  HybridConditional(const std::shared_ptr<GaussianMixture>& gaussianMixture);
+  HybridConditional(boost::shared_ptr<GaussianMixture> gaussianMixture);
+
+  /**
+   * @brief Return HybridConditional as a GaussianMixture
+   *
+   * @return GaussianMixture::shared_ptr
+   */
+  GaussianMixture::shared_ptr asMixture() {
+    if (!isHybrid()) throw std::invalid_argument("Not a mixture");
+    return boost::static_pointer_cast<GaussianMixture>(inner_);
+  }
+
+  /**
+   * @brief Return HybridConditional as a GaussianConditional
+   *
+   * @return GaussianConditional::shared_ptr
+   */
+  GaussianConditional::shared_ptr asGaussian() {
+    if (!isContinuous())
+      throw std::invalid_argument("Not a continuous conditional");
+    return boost::static_pointer_cast<GaussianConditional>(inner_);
+  }
+
+  /**
+   * @brief Return conditional as a DiscreteConditional
+   *
+   * @return DiscreteConditional::shared_ptr
+   */
+  DiscreteConditional::shared_ptr asDiscreteConditional() {
+    if (!isDiscrete())
+      throw std::invalid_argument("Not a discrete conditional");
+    return boost::static_pointer_cast<DiscreteConditional>(inner_);
+  }
 
   /// @}
   /// @name Testable
@@ -142,91 +174,18 @@ class GTSAM_EXPORT HybridConditional
   bool equals(const HybridFactor& other, double tol = 1e-9) const override;
 
   /// @}
-  /// @name Standard Interface
-  /// @{
-
-  /**
-   * @brief Return HybridConditional as a GaussianMixture
-   * @return nullptr if not a mixture
-   * @return GaussianMixture::shared_ptr otherwise
-   */
-  GaussianMixture::shared_ptr asMixture() const {
-    return std::dynamic_pointer_cast<GaussianMixture>(inner_);
-  }
-
-  /**
-   * @brief Return HybridConditional as a GaussianConditional
-   * @return nullptr if not a GaussianConditional
-   * @return GaussianConditional::shared_ptr otherwise
-   */
-  GaussianConditional::shared_ptr asGaussian() const {
-    return std::dynamic_pointer_cast<GaussianConditional>(inner_);
-  }
-
-  /**
-   * @brief Return conditional as a DiscreteConditional
-   * @return nullptr if not a DiscreteConditional
-   * @return DiscreteConditional::shared_ptr
-   */
-  DiscreteConditional::shared_ptr asDiscrete() const {
-    return std::dynamic_pointer_cast<DiscreteConditional>(inner_);
-  }
 
   /// Get the type-erased pointer to the inner type
-  std::shared_ptr<Factor> inner() const { return inner_; }
-
-  /// Return the error of the underlying conditional.
-  double error(const HybridValues& values) const override;
-
-  /// Return the log-probability (or density) of the underlying conditional.
-  double logProbability(const HybridValues& values) const override;
-
-  /**
-   * Return the log normalization constant.
-   * Note this is 0.0 for discrete and hybrid conditionals, but depends
-   * on the continuous parameters for Gaussian conditionals.
-   */ 
-  double logNormalizationConstant() const override;
-
-  /// Return the probability (or density) of the underlying conditional.
-  double evaluate(const HybridValues& values) const override;
-
-  /// Check if VectorValues `measurements` contains all frontal keys.
-  bool frontalsIn(const VectorValues& measurements) const {
-    for (Key key : frontals()) {
-      if (!measurements.exists(key)) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  /// @}
+  boost::shared_ptr<Factor> inner() { return inner_; }
 
  private:
-#ifdef GTSAM_ENABLE_BOOST_SERIALIZATION
   /** Serialization function */
   friend class boost::serialization::access;
   template <class Archive>
   void serialize(Archive& ar, const unsigned int /*version*/) {
     ar& BOOST_SERIALIZATION_BASE_OBJECT_NVP(BaseFactor);
     ar& BOOST_SERIALIZATION_BASE_OBJECT_NVP(BaseConditional);
-    ar& BOOST_SERIALIZATION_NVP(inner_);
-
-    // register the various casts based on the type of inner_
-    // https://www.boost.org/doc/libs/1_80_0/libs/serialization/doc/serialization.html#runtimecasting
-    if (isDiscrete()) {
-      boost::serialization::void_cast_register<DiscreteConditional, Factor>(
-          static_cast<DiscreteConditional*>(NULL), static_cast<Factor*>(NULL));
-    } else if (isContinuous()) {
-      boost::serialization::void_cast_register<GaussianConditional, Factor>(
-          static_cast<GaussianConditional*>(NULL), static_cast<Factor*>(NULL));
-    } else {
-      boost::serialization::void_cast_register<GaussianMixture, Factor>(
-          static_cast<GaussianMixture*>(NULL), static_cast<Factor*>(NULL));
-    }
   }
-#endif
 
 };  // HybridConditional
 

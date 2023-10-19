@@ -156,9 +156,6 @@ virtual class SmartProjectionPoseFactor : gtsam::NonlinearFactor {
 
   // enabling serialization functionality
   void serialize() const;
-
-  gtsam::TriangulationResult point() const;
-  gtsam::TriangulationResult point(const gtsam::Values& values) const;
 };
 
 typedef gtsam::SmartProjectionPoseFactor<gtsam::Cal3_S2>
@@ -254,7 +251,7 @@ void save2D(const gtsam::NonlinearFactorGraph& graph,
             string filename);
 
 // std::vector<gtsam::BetweenFactor<Pose2>::shared_ptr>
-// Used in Matlab wrapper
+// Ignored by pybind -> will be List[BetweenFactorPose2]
 class BetweenFactorPose2s {
   BetweenFactorPose2s();
   size_t size() const;
@@ -264,14 +261,13 @@ class BetweenFactorPose2s {
 gtsam::BetweenFactorPose2s parse2DFactors(string filename);
 
 // std::vector<gtsam::BetweenFactor<Pose3>::shared_ptr>
-// Used in Matlab wrapper
+// Ignored by pybind -> will be List[BetweenFactorPose3]
 class BetweenFactorPose3s {
   BetweenFactorPose3s();
   size_t size() const;
   gtsam::BetweenFactor<gtsam::Pose3>* at(size_t i) const;
   void push_back(const gtsam::BetweenFactor<gtsam::Pose3>* factor);
 };
-
 gtsam::BetweenFactorPose3s parse3DFactors(string filename);
 
 pair<gtsam::NonlinearFactorGraph*, gtsam::Values*> load3D(string filename);

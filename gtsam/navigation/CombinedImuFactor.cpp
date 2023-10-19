@@ -21,10 +21,8 @@
  **/
 
 #include <gtsam/navigation/CombinedImuFactor.h>
-#ifdef GTSAM_ENABLE_BOOST_SERIALIZATION
 #include <boost/serialization/export.hpp>
-#endif
-
+#include <iostream>
 /* External or standard includes */
 #include <ostream>
 
@@ -74,17 +72,7 @@ bool PreintegratedCombinedMeasurements::equals(
 
 //------------------------------------------------------------------------------
 void PreintegratedCombinedMeasurements::resetIntegration() {
-  // Base class method to reset the preintegrated measurements
   PreintegrationType::resetIntegration();
-  preintMeasCov_.setZero();
-}
-
-//------------------------------------------------------------------------------
-void PreintegratedCombinedMeasurements::resetIntegration(
-    const gtsam::Matrix6& Q_init) {
-  // Base class method to reset the preintegrated measurements
-  PreintegrationType::resetIntegration();
-  p().biasAccOmegaInt = Q_init;
   preintMeasCov_.setZero();
 }
 
@@ -122,21 +110,21 @@ void PreintegratedCombinedMeasurements::integrateMeasurement(
   // and preintegrated measurements
 
   // Single Jacobians to propagate covariance
-  Matrix3 theta_H_omega = C.topRows<3>();
-  Matrix3 pos_H_acc = B.middleRows<3>(3);
-  Matrix3 vel_H_acc = B.bottomRows<3>();
+  Matrix3 theta_H_biasOmega = C.topRows<3>();
+  Matrix3 pos_H_biasAcc = B.middleRows<3>(3);
+  Matrix3 vel_H_biasAcc = B.bottomRows<3>();
 
-  Matrix3 theta_H_biasOmegaInit = -theta_H_omega;
-  Matrix3 pos_H_biasAccInit = -pos_H_acc;
-  Matrix3 vel_H_biasAccInit = -vel_H_acc;
+  Matrix3 theta_H_biasOmegaInit = -theta_H_biasOmega;
+  Matrix3 pos_H_biasAccInit = -pos_H_biasAcc;
+  Matrix3 vel_H_biasAccInit = -vel_H_biasAcc;
 
   // overall Jacobian wrt preintegrated measurements (df/dx)
   Eigen::Matrix<double, 15, 15> F;
   F.setZero();
   F.block<9, 9>(0, 0) = A;
-  F.block<3, 3>(0, 12) = theta_H_omega;
-  F.block<3, 3>(3, 9) = pos_H_acc;
-  F.block<3, 3>(6, 9) = vel_H_acc;
+  F.block<3, 3>(0, 12) = theta_H_biasOmega;
+  F.block<3, 3>(3, 9) = pos_H_biasAcc;
+  F.block<3, 3>(6, 9) = vel_H_biasAcc;
   F.block<6, 6>(9, 9) = I_6x6;
 
   // Update the uncertainty on the state (matrix F in [4]).
@@ -161,17 +149,17 @@ void PreintegratedCombinedMeasurements::integrateMeasurement(
 
   // BLOCK DIAGONAL TERMS
   D_R_R(&G_measCov_Gt) =
-      (theta_H_omega * (wCov / dt) * theta_H_omega.transpose())  //
+      (theta_H_biasOmega * (wCov / dt) * theta_H_biasOmega.transpose())  //
       +
       (theta_H_biasOmegaInit * bInitCov22 * theta_H_biasOmegaInit.transpose());
 
   D_t_t(&G_measCov_Gt) =
-      (pos_H_acc * (aCov / dt) * pos_H_acc.transpose())           //
+      (pos_H_biasAcc * (aCov / dt) * pos_H_biasAcc.transpose())           //
       + (pos_H_biasAccInit * bInitCov11 * pos_H_biasAccInit.transpose())  //
       + (dt * iCov);
 
   D_v_v(&G_measCov_Gt) =
-      (vel_H_acc * (aCov / dt) * vel_H_acc.transpose())  //
+      (vel_H_biasAcc * (aCov / dt) * vel_H_biasAcc.transpose())  //
       + (vel_H_biasAccInit * bInitCov11 * vel_H_biasAccInit.transpose());
 
   D_a_a(&G_measCov_Gt) = dt * p().biasAccCovariance;
@@ -185,12 +173,12 @@ void PreintegratedCombinedMeasurements::integrateMeasurement(
   D_t_R(&G_measCov_Gt) =
       pos_H_biasAccInit * bInitCov12 * theta_H_biasOmegaInit.transpose();
   D_t_v(&G_measCov_Gt) =
-      (pos_H_acc * (aCov / dt) * vel_H_acc.transpose()) +
+      (pos_H_biasAcc * (aCov / dt) * vel_H_biasAcc.transpose()) +
       (pos_H_biasAccInit * bInitCov11 * vel_H_biasAccInit.transpose());
   D_v_R(&G_measCov_Gt) =
       vel_H_biasAccInit * bInitCov12 * theta_H_biasOmegaInit.transpose();
   D_v_t(&G_measCov_Gt) =
-      (vel_H_acc * (aCov / dt) * pos_H_acc.transpose()) +
+      (vel_H_biasAcc * (aCov / dt) * pos_H_biasAcc.transpose()) +
       (vel_H_biasAccInit * bInitCov11 * pos_H_biasAccInit.transpose());
 
   preintMeasCov_.noalias() += G_measCov_Gt;
@@ -208,7 +196,7 @@ CombinedImuFactor::CombinedImuFactor(Key pose_i, Key vel_i, Key pose_j,
 
 //------------------------------------------------------------------------------
 gtsam::NonlinearFactor::shared_ptr CombinedImuFactor::clone() const {
-  return std::static_pointer_cast<gtsam::NonlinearFactor>(
+  return boost::static_pointer_cast<gtsam::NonlinearFactor>(
       gtsam::NonlinearFactor::shared_ptr(new This(*this)));
 }
 
@@ -216,9 +204,9 @@ gtsam::NonlinearFactor::shared_ptr CombinedImuFactor::clone() const {
 void CombinedImuFactor::print(const string& s,
     const KeyFormatter& keyFormatter) const {
   cout << (s.empty() ? s : s + "\n") << "CombinedImuFactor("
-       << keyFormatter(this->key<1>()) << "," << keyFormatter(this->key<2>()) << ","
-       << keyFormatter(this->key<3>()) << "," << keyFormatter(this->key<4>()) << ","
-       << keyFormatter(this->key<5>()) << "," << keyFormatter(this->key<6>())
+       << keyFormatter(this->key1()) << "," << keyFormatter(this->key2()) << ","
+       << keyFormatter(this->key3()) << "," << keyFormatter(this->key4()) << ","
+       << keyFormatter(this->key5()) << "," << keyFormatter(this->key6())
        << ")\n";
   _PIM_.print("  preintegrated measurements:");
   this->noiseModel_->print("  noise model: ");
@@ -234,9 +222,9 @@ bool CombinedImuFactor::equals(const NonlinearFactor& other, double tol) const {
 Vector CombinedImuFactor::evaluateError(const Pose3& pose_i,
     const Vector3& vel_i, const Pose3& pose_j, const Vector3& vel_j,
     const imuBias::ConstantBias& bias_i, const imuBias::ConstantBias& bias_j,
-    OptionalMatrixType H1, OptionalMatrixType H2,
-    OptionalMatrixType H3, OptionalMatrixType H4,
-    OptionalMatrixType H5, OptionalMatrixType H6) const {
+    boost::optional<Matrix&> H1, boost::optional<Matrix&> H2,
+    boost::optional<Matrix&> H3, boost::optional<Matrix&> H4,
+    boost::optional<Matrix&> H5, boost::optional<Matrix&> H6) const {
 
   // error wrt bias evolution model (random walk)
   Matrix6 Hbias_i, Hbias_j;
@@ -292,6 +280,7 @@ Vector CombinedImuFactor::evaluateError(const Pose3& pose_i,
   // overall error
   Vector r(15);
   r << r_Rpv, fbias; // vector of size 15
+
   return r;
 }
 

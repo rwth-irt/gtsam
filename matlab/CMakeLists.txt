@@ -42,7 +42,7 @@ endif()
 
 include(MatlabWrap)
 
-if(NOT GTSAM_SHARED_LIB)
+if(NOT BUILD_SHARED_LIBS)
   message(
     FATAL_ERROR
       "GTSAM_INSTALL_MATLAB_TOOLBOX and BUILD_SHARED_LIBS=OFF."
@@ -54,7 +54,7 @@ endif()
 # ##############################################################################
 # Generate, build and install toolbox
 set(mexFlags "${GTSAM_BUILD_MEX_BINARY_FLAGS}")
-if(NOT GTSAM_SHARED_LIB)
+if(NOT BUILD_SHARED_LIBS)
   list(APPEND mexFlags -DGTSAM_IMPORT_STATIC)
 endif()
 
@@ -63,10 +63,6 @@ set(ignore
     gtsam::Point2
     gtsam::Point3
     gtsam::CustomFactor)
-
-if (APPLE OR WIN32)
-  list(APPEND ignore gtsam::Symbol)
-endif()
 
 set(interface_files
     ${GTSAM_SOURCE_DIR}/gtsam/gtsam.i
@@ -77,7 +73,6 @@ set(interface_files
     ${GTSAM_SOURCE_DIR}/gtsam/geometry/geometry.i
     ${GTSAM_SOURCE_DIR}/gtsam/linear/linear.i
     ${GTSAM_SOURCE_DIR}/gtsam/nonlinear/nonlinear.i
-    ${GTSAM_SOURCE_DIR}/gtsam/nonlinear/values.i
     ${GTSAM_SOURCE_DIR}/gtsam/nonlinear/custom.i
     ${GTSAM_SOURCE_DIR}/gtsam/symbolic/symbolic.i
     ${GTSAM_SOURCE_DIR}/gtsam/sam/sam.i
@@ -87,13 +82,13 @@ set(interface_files
 )
 # Wrap
 matlab_wrap("${interface_files}" "gtsam" "${GTSAM_ADDITIONAL_LIBRARIES}"
-            "" "${mexFlags}" "${ignore}" "${GTSAM_ENABLE_BOOST_SERIALIZATION}")
+            "" "${mexFlags}" "${ignore}")
 
 # Wrap version for gtsam_unstable
 if(GTSAM_UNSTABLE_INSTALL_MATLAB_TOOLBOX)
   # Generate, build and install toolbox
   set(mexFlags "${GTSAM_BUILD_MEX_BINARY_FLAGS}")
-  if(NOT GTSAM_SHARED_LIB)
+  if(NOT BUILD_SHARED_LIBS)
     list(APPEND mexFlags -DGTSAM_IMPORT_STATIC)
   endif()
 

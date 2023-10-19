@@ -24,10 +24,12 @@
 #include <gtsam/slam/PoseTranslationPrior.h>
 #include <gtsam/slam/ProjectionFactor.h>
 #include <gtsam/slam/StereoFactor.h>
+#include <boost/assign/std/vector.hpp>
 #include <CppUnitLite/TestHarness.h>
 #include <iostream>
 
 using namespace std;
+using namespace boost::assign;
 using namespace gtsam;
 
 namespace {
@@ -218,7 +220,9 @@ TEST( SmartProjectionPoseFactor, noiselessWithMissingMeasurements ) {
    double actualError2 = factor1.totalReprojectionError(cameras);
    EXPECT_DOUBLES_EQUAL(expectedError, actualError2, 1e-7);
 
-   CameraSet<StereoCamera> cams{level_camera, level_camera_right};
+   CameraSet<StereoCamera> cams;
+   cams += level_camera;
+   cams += level_camera_right;
    TriangulationResult result = factor1.triangulateSafe(cams);
    CHECK(result);
    EXPECT(assert_equal(landmark, *result, 1e-7));
@@ -269,7 +273,7 @@ TEST( SmartStereoProjectionPoseFactor, noisy ) {
   measurements.push_back(level_uv);
   measurements.push_back(level_uv_right);
 
-  vector<std::shared_ptr<Cal3_S2Stereo> > Ks; ///< shared pointer to calibration object (one for each camera)
+  vector<boost::shared_ptr<Cal3_S2Stereo> > Ks; ///< shared pointer to calibration object (one for each camera)
   Ks.push_back(K);
   Ks.push_back(K);
 
@@ -1096,17 +1100,17 @@ TEST( SmartStereoProjectionPoseFactor, CheckHessian) {
   values.insert(x3, pose3 * noise_pose);
 
   // TODO: next line throws Cheirality exception on Mac
-  std::shared_ptr<GaussianFactor> hessianFactor1 = smartFactor1->linearize(
+  boost::shared_ptr<GaussianFactor> hessianFactor1 = smartFactor1->linearize(
       values);
-  std::shared_ptr<GaussianFactor> hessianFactor2 = smartFactor2->linearize(
+  boost::shared_ptr<GaussianFactor> hessianFactor2 = smartFactor2->linearize(
       values);
-  std::shared_ptr<GaussianFactor> hessianFactor3 = smartFactor3->linearize(
+  boost::shared_ptr<GaussianFactor> hessianFactor3 = smartFactor3->linearize(
       values);
 
   Matrix CumulativeInformation = hessianFactor1->information()
       + hessianFactor2->information() + hessianFactor3->information();
 
-  std::shared_ptr<GaussianFactorGraph> GaussianGraph = graph.linearize(
+  boost::shared_ptr<GaussianFactorGraph> GaussianGraph = graph.linearize(
       values);
   Matrix GraphInformation = GaussianGraph->hessian().first;
 
@@ -1297,7 +1301,7 @@ TEST( SmartStereoProjectionPoseFactor, CheckHessian) {
 //  values.insert(x1, pose1);
 //  values.insert(x2, pose2);
 //
-//  std::shared_ptr<GaussianFactor> hessianFactor = smartFactor1->linearize(values);
+//  boost::shared_ptr<GaussianFactor> hessianFactor = smartFactor1->linearize(values);
 //
 //  // compute triangulation from linearization point
 //  // compute reprojection errors (sum squared)
@@ -1338,7 +1342,7 @@ TEST( SmartStereoProjectionPoseFactor, HessianWithRotation ) {
   values.insert(x2, pose2);
   values.insert(x3, pose3);
 
-  std::shared_ptr<GaussianFactor> hessianFactor =
+  boost::shared_ptr<GaussianFactor> hessianFactor =
       smartFactorInstance->linearize(values);
   // hessianFactor->print("Hessian factor \n");
 
@@ -1349,7 +1353,7 @@ TEST( SmartStereoProjectionPoseFactor, HessianWithRotation ) {
   rotValues.insert(x2, poseDrift.compose(pose2));
   rotValues.insert(x3, poseDrift.compose(pose3));
 
-  std::shared_ptr<GaussianFactor> hessianFactorRot =
+  boost::shared_ptr<GaussianFactor> hessianFactorRot =
       smartFactorInstance->linearize(rotValues);
   // hessianFactorRot->print("Hessian factor \n");
 
@@ -1366,7 +1370,7 @@ TEST( SmartStereoProjectionPoseFactor, HessianWithRotation ) {
   tranValues.insert(x2, poseDrift2.compose(pose2));
   tranValues.insert(x3, poseDrift2.compose(pose3));
 
-  std::shared_ptr<GaussianFactor> hessianFactorRotTran =
+  boost::shared_ptr<GaussianFactor> hessianFactorRotTran =
       smartFactorInstance->linearize(tranValues);
 
   // Hessian is invariant to rotations and translations in the nondegenerate case
@@ -1406,7 +1410,7 @@ TEST( SmartStereoProjectionPoseFactor, HessianWithRotationNonDegenerate ) {
   values.insert(x2, pose2);
   values.insert(x3, pose3);
 
-  std::shared_ptr<GaussianFactor> hessianFactor = smartFactor->linearize(
+  boost::shared_ptr<GaussianFactor> hessianFactor = smartFactor->linearize(
       values);
 
   // check that it is non degenerate
@@ -1419,7 +1423,7 @@ TEST( SmartStereoProjectionPoseFactor, HessianWithRotationNonDegenerate ) {
   rotValues.insert(x2, poseDrift.compose(pose2));
   rotValues.insert(x3, poseDrift.compose(pose3));
 
-  std::shared_ptr<GaussianFactor> hessianFactorRot = smartFactor->linearize(
+  boost::shared_ptr<GaussianFactor> hessianFactorRot = smartFactor->linearize(
       rotValues);
 
   // check that it is non degenerate
@@ -1438,17 +1442,17 @@ TEST( SmartStereoProjectionPoseFactor, HessianWithRotationNonDegenerate ) {
   tranValues.insert(x2, poseDrift2.compose(pose2));
   tranValues.insert(x3, poseDrift2.compose(pose3));
 
-  std::shared_ptr<GaussianFactor> hessianFactorRotTran =
+  boost::shared_ptr<GaussianFactor> hessianFactorRotTran =
       smartFactor->linearize(tranValues);
 
-  double error;
-#ifdef GTSAM_USE_EIGEN_MKL
-  error = 1e-5;
-#else
-  error = 1e-6;
-#endif
   // Hessian is invariant to rotations and translations in the degenerate case
-  EXPECT(assert_equal(hessianFactor->information(), hessianFactorRotTran->information(), error));
+  EXPECT(
+      assert_equal(hessianFactor->information(),
+#ifdef GTSAM_USE_EIGEN_MKL
+          hessianFactorRotTran->information(), 1e-5));
+#else
+          hessianFactorRotTran->information(), 1e-6));
+#endif
 }
 
 /* ************************************************************************* */

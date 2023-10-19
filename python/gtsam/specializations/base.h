@@ -11,3 +11,7 @@
  * and saves one copy operation.
  */
 
+py::bind_map<gtsam::IndexPairSetMap>(m_, "IndexPairSetMap");
+py::bind_vector<gtsam::IndexPairVector>(m_, "IndexPairVector");
+
+py::bind_vector<std::vector<gtsam::Matrix> >(m_, "JacobianVector");

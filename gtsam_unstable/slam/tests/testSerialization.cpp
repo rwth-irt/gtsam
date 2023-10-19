@@ -17,6 +17,7 @@
 
 #include <CppUnitLite/TestHarness.h>
 
+#include <boost/assign/std/vector.hpp>
 #include <boost/filesystem.hpp>
 
 #include <iostream>
@@ -26,6 +27,7 @@
 
 using namespace std;
 using namespace gtsam;
+using namespace boost::assign;
 namespace fs = boost::filesystem;
 #ifdef TOPSRCDIR
 static string topdir = TOPSRCDIR;

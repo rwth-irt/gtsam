@@ -18,21 +18,13 @@
 #pragma once
 
 #include <gtsam/base/Testable.h>
-#include <gtsam/discrete/DecisionTree.h>
 #include <gtsam/discrete/DiscreteKey.h>
-#include <gtsam/discrete/TableFactor.h>
 #include <gtsam/inference/Factor.h>
-#include <gtsam/linear/GaussianFactorGraph.h>
 #include <gtsam/nonlinear/Values.h>
 
 #include <cstddef>
 #include <string>
 namespace gtsam {
-
-class HybridValues;
-
-/// Alias for DecisionTree of GaussianFactorGraphs
-using GaussianFactorGraphTree = DecisionTree<Key, GaussianFactorGraph>;
 
 KeyVector CollectKeys(const KeyVector &continuousKeys,
                       const DiscreteKeys &discreteKeys);
@@ -41,10 +33,11 @@ DiscreteKeys CollectDiscreteKeys(const DiscreteKeys &key1,
                                  const DiscreteKeys &key2);
 
 /**
- * Base class for *truly* hybrid probabilistic factors
+ * Base class for hybrid probabilistic factors
  *
  * Examples:
- *  - MixtureFactor
+ *  - HybridGaussianFactor
+ *  - HybridDiscreteFactor
  *  - GaussianMixtureFactor
  *  - GaussianMixture
  *
@@ -65,7 +58,7 @@ class GTSAM_EXPORT HybridFactor : public Factor {
  public:
   // typedefs needed to play nice with gtsam
   typedef HybridFactor This;  ///< This class
-  typedef std::shared_ptr<HybridFactor>
+  typedef boost::shared_ptr<HybridFactor>
       shared_ptr;       ///< shared_ptr to this class
   typedef Factor Base;  ///< Our base class
 
@@ -97,6 +90,9 @@ class GTSAM_EXPORT HybridFactor : public Factor {
    */
   HybridFactor(const KeyVector &continuousKeys,
                const DiscreteKeys &discreteKeys);
+
+  /// Virtual destructor
+  virtual ~HybridFactor() = default;
 
   /// @}
   /// @name Testable
@@ -135,7 +131,6 @@ class GTSAM_EXPORT HybridFactor : public Factor {
   /// @}
 
  private:
-#ifdef GTSAM_ENABLE_BOOST_SERIALIZATION
   /** Serialization function */
   friend class boost::serialization::access;
   template <class ARCHIVE>
@@ -147,7 +142,6 @@ class GTSAM_EXPORT HybridFactor : public Factor {
     ar &BOOST_SERIALIZATION_NVP(discreteKeys_);
     ar &BOOST_SERIALIZATION_NVP(continuousKeys_);
   }
-#endif
 };
 // HybridFactor
 

@@ -21,6 +21,7 @@
 
 #include <gtsam/nonlinear/ExpressionFactor.h>
 #include <gtsam/geometry/BearingRange.h>
+#include <boost/concept/assert.hpp>
 
 namespace gtsam {
 
@@ -39,7 +40,7 @@ class BearingRangeFactor
   typedef BearingRangeFactor<A1, A2> This;
 
  public:
-  typedef std::shared_ptr<This> shared_ptr;
+  typedef boost::shared_ptr<This> shared_ptr;
 
   /// Default constructor
   BearingRangeFactor() {}
@@ -62,7 +63,7 @@ class BearingRangeFactor
 
   /// @return a deep copy of this factor
   gtsam::NonlinearFactor::shared_ptr clone() const override {
-    return std::static_pointer_cast<gtsam::NonlinearFactor>(
+    return boost::static_pointer_cast<gtsam::NonlinearFactor>(
         gtsam::NonlinearFactor::shared_ptr(new This(*this)));
   }
 
@@ -73,7 +74,9 @@ class BearingRangeFactor
   }
 
   Vector evaluateError(const A1& a1, const A2& a2,
-      OptionalMatrixType H1 = OptionalNone, OptionalMatrixType H2 = OptionalNone) const {
+      boost::optional<Matrix&> H1 = boost::none,
+      boost::optional<Matrix&> H2 = boost::none) const
+  {
     std::vector<Matrix> Hs(2);
     const auto &keys = Factor::keys();
     const Vector error = this->unwhitenedError(
@@ -92,14 +95,12 @@ class BearingRangeFactor
 
 
  private:
-#ifdef GTSAM_ENABLE_BOOST_SERIALIZATION
   friend class boost::serialization::access;
   template <class ARCHIVE>
   void serialize(ARCHIVE& ar, const unsigned int /*version*/) {
     ar& boost::serialization::make_nvp(
         "Base", boost::serialization::base_object<Base>(*this));
   }
-#endif
 };  // BearingRangeFactor
 
 /// traits

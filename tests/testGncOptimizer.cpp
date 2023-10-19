@@ -737,7 +737,9 @@ TEST(GncOptimizer, setInlierCostThresholds) {
 TEST(GncOptimizer, optimizeSmallPoseGraph) {
   /// load small pose graph
   const string filename = findExampleDataFile("w100.graph");
-  const auto [graph, initial] = load2D(filename);
+  NonlinearFactorGraph::shared_ptr graph;
+  Values::shared_ptr initial;
+  boost::tie(graph, initial) = load2D(filename);
   // Add a Gaussian prior on first poses
   Pose2 priorMean(0.0, 0.0, 0.0);  // prior at origin
   SharedDiagonal priorNoise = noiseModel::Diagonal::Sigmas(

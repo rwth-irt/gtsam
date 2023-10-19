@@ -23,7 +23,7 @@
 #include <gtsam/inference/BayesNet.h>
 #include <gtsam/inference/FactorGraph.h>
 
-#include <memory>
+#include <boost/shared_ptr.hpp>
 #include <map>
 #include <string>
 #include <utility>
@@ -40,8 +40,8 @@ class GTSAM_EXPORT DiscreteBayesNet: public BayesNet<DiscreteConditional> {
     typedef BayesNet<DiscreteConditional> Base;
     typedef DiscreteBayesNet This;
     typedef DiscreteConditional ConditionalType;
-    typedef std::shared_ptr<This> shared_ptr;
-    typedef std::shared_ptr<ConditionalType> sharedConditional;
+    typedef boost::shared_ptr<This> shared_ptr;
+    typedef boost::shared_ptr<ConditionalType> sharedConditional;
 
     /// @name Standard Constructors
     /// @{
@@ -64,6 +64,9 @@ class GTSAM_EXPORT DiscreteBayesNet: public BayesNet<DiscreteConditional> {
     template <class DERIVEDCONDITIONAL>
     DiscreteBayesNet(const FactorGraph<DERIVEDCONDITIONAL>& graph)
         : Base(graph) {}
+
+    /// Destructor
+    virtual ~DiscreteBayesNet() {}
 
     /// @}
 
@@ -100,9 +103,6 @@ class GTSAM_EXPORT DiscreteBayesNet: public BayesNet<DiscreteConditional> {
       return evaluate(values);
     }
 
-    //** log(evaluate(values)) for given DiscreteValues */
-    double logProbability(const DiscreteValues & values) const;
-
     /**
      * @brief do ancestral sampling
      *
@@ -136,25 +136,24 @@ class GTSAM_EXPORT DiscreteBayesNet: public BayesNet<DiscreteConditional> {
     std::string html(const KeyFormatter& keyFormatter = DefaultKeyFormatter,
                      const DiscreteFactor::Names& names = {}) const;
 
-    /// @}
-    /// @name HybridValues methods.
+    ///@}
+
+#ifdef GTSAM_ALLOW_DEPRECATED_SINCE_V42
+    /// @name Deprecated functionality
     /// @{
 
-    using Base::error;     // Expose error(const HybridValues&) method..
-    using Base::evaluate;  // Expose evaluate(const HybridValues&) method..
-    using Base::logProbability;  // Expose logProbability(const HybridValues&)
-
+    DiscreteValues GTSAM_DEPRECATED optimize() const;
+    DiscreteValues GTSAM_DEPRECATED optimize(DiscreteValues given) const;
     /// @}
+#endif
 
  private:
-#ifdef GTSAM_ENABLE_BOOST_SERIALIZATION
     /** Serialization function */
     friend class boost::serialization::access;
     template<class ARCHIVE>
     void serialize(ARCHIVE & ar, const unsigned int /*version*/) {
       ar & BOOST_SERIALIZATION_BASE_OBJECT_NVP(Base);
     }
-#endif
   };
 
 // traits

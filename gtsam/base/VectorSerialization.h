@@ -16,8 +16,6 @@
  * @date    February 2022
  */
 
-// Defined only if boost serialization is enabled
-#ifdef GTSAM_ENABLE_BOOST_SERIALIZATION
 #pragma once
 
 #include <gtsam/base/Vector.h>
@@ -65,4 +63,3 @@ BOOST_SERIALIZATION_SPLIT_FREE(gtsam::Vector)
 BOOST_SERIALIZATION_SPLIT_FREE(gtsam::Vector2)
 BOOST_SERIALIZATION_SPLIT_FREE(gtsam::Vector3)
 BOOST_SERIALIZATION_SPLIT_FREE(gtsam::Vector6)
-#endif

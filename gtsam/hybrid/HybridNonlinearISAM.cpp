@@ -34,12 +34,11 @@ void HybridNonlinearISAM::saveGraph(const string& s,
 /* ************************************************************************* */
 void HybridNonlinearISAM::update(const HybridNonlinearFactorGraph& newFactors,
                                  const Values& initialValues,
-                                 const std::optional<size_t>& maxNrLeaves,
-                                 const std::optional<Ordering>& ordering) {
+                                 const boost::optional<size_t>& maxNrLeaves,
+                                 const boost::optional<Ordering>& ordering) {
   if (newFactors.size() > 0) {
     // Reorder and relinearize every reorderInterval updates
     if (reorderInterval_ > 0 && ++reorderCounter_ >= reorderInterval_) {
-      // TODO(Varun) Relinearization doesn't take into account pruning
       reorder_relinearize();
       reorderCounter_ = 0;
     }
@@ -50,7 +49,7 @@ void HybridNonlinearISAM::update(const HybridNonlinearFactorGraph& newFactors,
     // TODO: optimize for whole config?
     linPoint_.insert(initialValues);
 
-    std::shared_ptr<HybridGaussianFactorGraph> linearizedNewFactors =
+    boost::shared_ptr<HybridGaussianFactorGraph> linearizedNewFactors =
         newFactors.linearize(linPoint_);
 
     // Update ISAM
@@ -70,7 +69,7 @@ void HybridNonlinearISAM::reorder_relinearize() {
     // Just recreate the whole BayesTree
     // TODO: allow for constrained ordering here
     // TODO: decouple relinearization and reordering to avoid
-    isam_.update(*factors_.linearize(newLinPoint), {}, {},
+    isam_.update(*factors_.linearize(newLinPoint), boost::none, boost::none,
                  eliminationFunction_);
 
     // Update linearization point
@@ -100,11 +99,9 @@ void HybridNonlinearISAM::print(const string& s,
                                 const KeyFormatter& keyFormatter) const {
   cout << s << "ReorderInterval: " << reorderInterval_
        << " Current Count: " << reorderCounter_ << endl;
-  std::cout << "HybridGaussianISAM:" << std::endl;
-  isam_.print("", keyFormatter);
+  isam_.print("HybridGaussianISAM:\n", keyFormatter);
   linPoint_.print("Linearization Point:\n", keyFormatter);
-  std::cout << "Nonlinear Graph:" << std::endl;
-  factors_.print("", keyFormatter);
+  factors_.print("Nonlinear Graph:\n", keyFormatter);
 }
 
 /* ************************************************************************* */

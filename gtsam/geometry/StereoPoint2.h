@@ -20,9 +20,7 @@
 
 #include <gtsam/geometry/Point2.h>
 #include <gtsam/base/VectorSpace.h>
-#ifdef GTSAM_ENABLE_BOOST_SERIALIZATION
 #include <boost/serialization/nvp.hpp>
-#endif
 
 namespace gtsam {
 
@@ -46,9 +44,7 @@ public:
       uL_(0), uR_(0), v_(0) {
   }
 
-  /** uL and uR represent the x-axis value of left and right frame coordinates respectively.
-      v represents the y coordinate value. The y-axis value should be the same under the
-      stereo constraint. */
+  /** constructor */
   StereoPoint2(double uL, double uR, double v) :
       uL_(uL), uR_(uR), v_(v) {
   }
@@ -150,7 +146,6 @@ private:
   /// @name Advanced Interface
   /// @{
 
-#ifdef GTSAM_ENABLE_BOOST_SERIALIZATION
   /** Serialization function */
   friend class boost::serialization::access;
   template<class ARCHIVE>
@@ -159,7 +154,6 @@ private:
     ar & BOOST_SERIALIZATION_NVP(uR_);
     ar & BOOST_SERIALIZATION_NVP(v_);
   }
-#endif
 
   /// @}
 

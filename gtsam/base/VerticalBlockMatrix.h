@@ -219,7 +219,6 @@ namespace gtsam {
     friend class SymmetricBlockMatrix;
 
   private:
-#ifdef GTSAM_ENABLE_BOOST_SERIALIZATION
     /** Serialization function */
     friend class boost::serialization::access;
     template<class ARCHIVE>
@@ -230,7 +229,6 @@ namespace gtsam {
       ar & BOOST_SERIALIZATION_NVP(rowEnd_);
       ar & BOOST_SERIALIZATION_NVP(blockStart_);
     }
-#endif
   };
 
 }

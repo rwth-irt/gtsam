@@ -25,6 +25,7 @@
 #include <gtsam/base/TestableAssertions.h>
 
 #include <CppUnitLite/TestHarness.h>
+#include <boost/bind/bind.hpp>
 
 using namespace std::placeholders;
 using namespace std;
@@ -213,7 +214,7 @@ TEST( RangeFactor, Jacobian2D ) {
 
   // Use the factor to calculate the Jacobians
   Matrix H1Actual, H2Actual;
-  factor.evaluateError(pose, point, &H1Actual, &H2Actual);
+  factor.evaluateError(pose, point, H1Actual, H2Actual);
 
   // Use numerical derivatives to calculate the Jacobians
   Matrix H1Expected, H2Expected;

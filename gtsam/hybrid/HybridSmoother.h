@@ -20,11 +20,9 @@
 #include <gtsam/hybrid/HybridBayesNet.h>
 #include <gtsam/hybrid/HybridGaussianFactorGraph.h>
 
-#include <optional>
-
 namespace gtsam {
 
-class GTSAM_EXPORT HybridSmoother {
+class HybridSmoother {
  private:
   HybridBayesNet hybridBayesNet_;
   HybridGaussianFactorGraph remainingFactorGraph_;
@@ -44,16 +42,13 @@ class GTSAM_EXPORT HybridSmoother {
    * corresponding to the pruned choices.
    *
    * @param graph The new factors, should be linear only
+   * @param ordering The ordering for elimination, only continuous vars are
+   * allowed
    * @param maxNrLeaves The maximum number of leaves in the new discrete factor,
    * if applicable
-   * @param given_ordering The (optional) ordering for elimination, only
-   * continuous variables are allowed
    */
-  void update(HybridGaussianFactorGraph graph,
-              std::optional<size_t> maxNrLeaves = {},
-              const std::optional<Ordering> given_ordering = {});
-
-  Ordering getOrdering(const HybridGaussianFactorGraph& newFactors);
+  void update(HybridGaussianFactorGraph graph, const Ordering& ordering,
+              boost::optional<size_t> maxNrLeaves = boost::none);
 
   /**
    * @brief Add conditionals from previous timestep as part of liquefication.
@@ -75,4 +70,4 @@ class GTSAM_EXPORT HybridSmoother {
   const HybridBayesNet& hybridBayesNet() const;
 };
 
-}  // namespace gtsam
+};  // namespace gtsam

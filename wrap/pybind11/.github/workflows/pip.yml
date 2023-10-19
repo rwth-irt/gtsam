@@ -12,11 +12,7 @@ on:
     types:
     - published
 
-permissions:
-  contents: read
-
 env:
-  PIP_BREAK_SYSTEM_PACKAGES: 1
   PIP_ONLY_BINARY: numpy
 
 jobs:
@@ -102,13 +98,13 @@ jobs:
     - uses: actions/download-artifact@v3
 
     - name: Publish standard package
-      uses: pypa/gh-action-pypi-publish@release/v1
+      uses: pypa/gh-action-pypi-publish@v1.5.0
       with:
         password: ${{ secrets.pypi_password }}
-        packages-dir: standard/
+        packages_dir: standard/
 
     - name: Publish global package
-      uses: pypa/gh-action-pypi-publish@release/v1
+      uses: pypa/gh-action-pypi-publish@v1.5.0
       with:
         password: ${{ secrets.pypi_password_global }}
-        packages-dir: global/
+        packages_dir: global/

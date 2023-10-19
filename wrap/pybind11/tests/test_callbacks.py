@@ -5,7 +5,6 @@ import pytest
 
 import env  # noqa: F401
 from pybind11_tests import callbacks as m
-from pybind11_tests import detailed_error_messages_enabled
 
 
 def test_callbacks():
@@ -71,20 +70,11 @@ def test_keyword_args_and_generalized_unpacking():
 
     with pytest.raises(RuntimeError) as excinfo:
         m.test_arg_conversion_error1(f)
-    assert str(excinfo.value) == "Unable to convert call argument " + (
-        "'1' of type 'UnregisteredType' to Python object"
-        if detailed_error_messages_enabled
-        else "'1' to Python object (#define PYBIND11_DETAILED_ERROR_MESSAGES or compile in debug mode for details)"
-    )
+    assert "Unable to convert call argument" in str(excinfo.value)
 
     with pytest.raises(RuntimeError) as excinfo:
         m.test_arg_conversion_error2(f)
-    assert str(excinfo.value) == "Unable to convert call argument " + (
-        "'expected_name' of type 'UnregisteredType' to Python object"
-        if detailed_error_messages_enabled
-        else "'expected_name' to Python object "
-        "(#define PYBIND11_DETAILED_ERROR_MESSAGES or compile in debug mode for details)"
-    )
+    assert "Unable to convert call argument" in str(excinfo.value)
 
 
 def test_lambda_closure_cleanup():
@@ -203,16 +193,3 @@ def test_callback_num_times():
     if len(rates) > 1:
         print("Min    Mean   Max")
         print(f"{min(rates):6.3f} {sum(rates) / len(rates):6.3f} {max(rates):6.3f}")
-
-
-def test_custom_func():
-    assert m.custom_function(4) == 36
-    assert m.roundtrip(m.custom_function)(4) == 36
-
-
-@pytest.mark.skipif(
-    m.custom_function2 is None, reason="Current PYBIND11_INTERNALS_VERSION too low"
-)
-def test_custom_func2():
-    assert m.custom_function2(3) == 27
-    assert m.roundtrip(m.custom_function2)(3) == 27

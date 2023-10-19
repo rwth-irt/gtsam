@@ -75,8 +75,8 @@ virtual class PreintegratedRotationParams {
 
   Matrix getGyroscopeCovariance() const;
 
-  std::optional<Vector> getOmegaCoriolis() const;
-  std::optional<gtsam::Pose3> getBodyPSensor() const;
+  boost::optional<Vector> getOmegaCoriolis() const;
+  boost::optional<gtsam::Pose3> getBodyPSensor() const;
 };
 
 #include <gtsam/navigation/PreintegrationParams.h>
@@ -216,13 +216,7 @@ virtual class CombinedImuFactor: gtsam::NonlinearFactor {
 #include <gtsam/navigation/AHRSFactor.h>
 class PreintegratedAhrsMeasurements {
   // Standard Constructor
-  PreintegratedAhrsMeasurements(const gtsam::PreintegrationParams* params,
-                                const Vector& biasHat);
-  PreintegratedAhrsMeasurements(const gtsam::PreintegrationParams* p,
-                                const Vector& bias_hat, double deltaTij,
-                                const gtsam::Rot3& deltaRij,
-                                const Matrix& delRdelBiasOmega,
-                                const Matrix& preint_meas_cov);
+  PreintegratedAhrsMeasurements(Vector bias, Matrix measuredOmegaCovariance);
   PreintegratedAhrsMeasurements(const gtsam::PreintegratedAhrsMeasurements& rhs);
 
   // Testable

@@ -24,10 +24,9 @@
 #include <gtsam/global_includes.h>
 #include <gtsam/inference/VariableSlots.h>
 
-#ifdef GTSAM_ENABLE_BOOST_SERIALIZATION
+#include <boost/make_shared.hpp>
 #include <boost/serialization/version.hpp>
 #include <boost/serialization/split_member.hpp>
-#endif
 
 namespace gtsam {
 
@@ -46,7 +45,7 @@ namespace gtsam {
    * variant that handles constraints (zero sigmas). Computation happens in noiseModel::Gaussian::QR
    * Returns a conditional on those keys, and a new factor on the separator.
    */
-  GTSAM_EXPORT std::pair<std::shared_ptr<GaussianConditional>, std::shared_ptr<JacobianFactor> >
+  GTSAM_EXPORT std::pair<boost::shared_ptr<GaussianConditional>, boost::shared_ptr<JacobianFactor> >
     EliminateQR(const GaussianFactorGraph& factors, const Ordering& keys);
 
   /**
@@ -94,7 +93,7 @@ namespace gtsam {
 
     typedef JacobianFactor This; ///< Typedef to this class
     typedef GaussianFactor Base; ///< Typedef to base class
-    typedef std::shared_ptr<This> shared_ptr; ///< shared_ptr to this class
+    typedef boost::shared_ptr<This> shared_ptr; ///< shared_ptr to this class
 
     typedef VerticalBlockMatrix::Block ABlock;
     typedef VerticalBlockMatrix::constBlock constABlock;
@@ -188,8 +187,8 @@ namespace gtsam {
 
     /** Clone this JacobianFactor */
     GaussianFactor::shared_ptr clone() const override {
-      return std::static_pointer_cast<GaussianFactor>(
-          std::make_shared<JacobianFactor>(*this));
+      return boost::static_pointer_cast<GaussianFactor>(
+          boost::make_shared<JacobianFactor>(*this));
     }
 
     // Implementing Testable interface
@@ -199,12 +198,7 @@ namespace gtsam {
 
     Vector unweighted_error(const VectorValues& c) const; /** (A*x-b) */
     Vector error_vector(const VectorValues& c) const; /** (A*x-b)/sigma */
-
-    /// HybridValues simply extracts the \class VectorValues and calls error.
-    using GaussianFactor::error;
-
-    //// 0.5*(A*x-b)'*D*(A*x-b).
-    double error(const VectorValues& c) const override; 
+    double error(const VectorValues& c) const override; /**  0.5*(A*x-b)'*D*(A*x-b) */
 
     /** Return the augmented information matrix represented by this GaussianFactor.
      * The augmented information matrix contains the information matrix with an
@@ -312,12 +306,6 @@ namespace gtsam {
     /** Get a view of the A matrix */
     ABlock getA() { return Ab_.range(0, size()); }
 
-    /**
-     * Get a view of the A matrix for the variable
-     * pointed to by the given key.
-     */
-    ABlock getA(const Key& key) { return Ab_(find(key) - begin()); }
-
     /** Update an information matrix by adding the information corresponding to this factor
      * (used internally during elimination).
      * @param scatter A mapping from variable index to slot index in this HessianFactor
@@ -361,7 +349,7 @@ namespace gtsam {
     JacobianFactor whiten() const;
 
     /** Eliminate the requested variables. */
-    std::pair<std::shared_ptr<GaussianConditional>, shared_ptr>
+    std::pair<boost::shared_ptr<GaussianConditional>, shared_ptr>
       eliminate(const Ordering& keys);
 
     /** set noiseModel correctly */
@@ -378,7 +366,7 @@ namespace gtsam {
      * @return The conditional and remaining factor
      *
      * \ingroup LinearSolving */
-    friend GTSAM_EXPORT std::pair<std::shared_ptr<GaussianConditional>, shared_ptr>
+    friend GTSAM_EXPORT std::pair<boost::shared_ptr<GaussianConditional>, shared_ptr>
       EliminateQR(const GaussianFactorGraph& factors, const Ordering& keys);
 
     /**
@@ -388,7 +376,7 @@ namespace gtsam {
      * NOTE: looks at dimension of noise model to determine how many rows to keep.
      * @param nrFrontals number of keys to eliminate
      */
-    std::shared_ptr<GaussianConditional> splitConditional(size_t nrFrontals);
+    boost::shared_ptr<GaussianConditional> splitConditional(size_t nrFrontals);
 
   protected:
 
@@ -421,7 +409,6 @@ namespace gtsam {
     // be very selective on who can access these private methods:
     template<typename T> friend class ExpressionFactor;
 
-#ifdef GTSAM_ENABLE_BOOST_SERIALIZATION
     /** Serialization function */
     friend class boost::serialization::access;
     template<class ARCHIVE>
@@ -459,7 +446,6 @@ namespace gtsam {
     }
 
     BOOST_SERIALIZATION_SPLIT_MEMBER()
-#endif
   }; // JacobianFactor
 /// traits
 template<>
@@ -468,9 +454,7 @@ struct traits<JacobianFactor> : public Testable<JacobianFactor> {
 
 } // \ namespace gtsam
 
-#ifdef GTSAM_ENABLE_BOOST_SERIALIZATION
 BOOST_CLASS_VERSION(gtsam::JacobianFactor, 1)
-#endif
 
 #include <gtsam/linear/JacobianFactor-inl.h>
 

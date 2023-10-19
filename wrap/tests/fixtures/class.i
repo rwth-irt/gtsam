@@ -3,8 +3,6 @@ class FunRange {
   This range(double d);
 
   static This create();
-
-  void serialize() const;
 };
 
 template<M={double}>

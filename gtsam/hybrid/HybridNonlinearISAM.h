@@ -19,7 +19,6 @@
 
 #include <gtsam/hybrid/HybridGaussianISAM.h>
 #include <gtsam/hybrid/HybridNonlinearFactorGraph.h>
-#include <optional>
 
 namespace gtsam {
 /**
@@ -91,7 +90,7 @@ class GTSAM_EXPORT HybridNonlinearISAM {
   const Values& getLinearizationPoint() const { return linPoint_; }
 
   /** Return the current discrete assignment */
-  const DiscreteValues& assignment() const { return assignment_; }
+  const DiscreteValues& getAssignment() const { return assignment_; }
 
   /** get underlying nonlinear graph */
   const HybridNonlinearFactorGraph& getFactorsUnsafe() const {
@@ -120,8 +119,8 @@ class GTSAM_EXPORT HybridNonlinearISAM {
   /** Add new factors along with their initial linearization points */
   void update(const HybridNonlinearFactorGraph& newFactors,
               const Values& initialValues,
-              const std::optional<size_t>& maxNrLeaves = {},
-              const std::optional<Ordering>& ordering = {});
+              const boost::optional<size_t>& maxNrLeaves = boost::none,
+              const boost::optional<Ordering>& ordering = boost::none);
 
   /** Relinearization and reordering of variables */
   void reorder_relinearize();

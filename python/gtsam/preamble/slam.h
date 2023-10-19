@@ -10,3 +10,9 @@
  * Without this they will be automatically converted to a Python object, and all
  * mutations on Python side will not be reflected on C++.
  */
+
+PYBIND11_MAKE_OPAQUE(
+    std::vector<boost::shared_ptr<gtsam::BetweenFactor<gtsam::Pose3> > >);
+PYBIND11_MAKE_OPAQUE(
+    std::vector<boost::shared_ptr<gtsam::BetweenFactor<gtsam::Pose2> > >);
+PYBIND11_MAKE_OPAQUE(gtsam::Rot3Vector);

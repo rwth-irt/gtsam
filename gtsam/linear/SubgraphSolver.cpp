@@ -34,14 +34,15 @@ namespace gtsam {
 SubgraphSolver::SubgraphSolver(const GaussianFactorGraph &Ab,
     const Parameters &parameters, const Ordering& ordering) :
     parameters_(parameters) {
-  const auto [Ab1, Ab2] = splitGraph(Ab);
+  GaussianFactorGraph Ab1, Ab2;
+  std::tie(Ab1, Ab2) = splitGraph(Ab);
   if (parameters_.verbosity())
     cout << "Split A into (A1) " << Ab1.size() << " and (A2) " << Ab2.size()
          << " factors" << endl;
 
   auto Rc1 = *Ab1.eliminateSequential(ordering, EliminateQR);
   auto xbar = Rc1.optimize();
-  pc_ = std::make_shared<SubgraphPreconditioner>(Ab2, Rc1, xbar);
+  pc_ = boost::make_shared<SubgraphPreconditioner>(Ab2, Rc1, xbar);
 }
 
 /**************************************************************************************************/
@@ -51,7 +52,7 @@ SubgraphSolver::SubgraphSolver(const GaussianBayesNet &Rc1,
                                const Parameters &parameters)
     : parameters_(parameters) {
   auto xbar = Rc1.optimize();
-  pc_ = std::make_shared<SubgraphPreconditioner>(Ab2, Rc1, xbar);
+  pc_ = boost::make_shared<SubgraphPreconditioner>(Ab2, Rc1, xbar);
 }
 
 /**************************************************************************************************/

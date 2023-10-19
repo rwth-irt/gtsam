@@ -24,4 +24,5 @@ def deprecated_call():
     pytest_major_minor = (int(pieces[0]), int(pieces[1]))
     if pytest_major_minor < (3, 9):
         return pytest.warns((DeprecationWarning, PendingDeprecationWarning))
-    return pytest.deprecated_call()
+    else:
+        return pytest.deprecated_call()

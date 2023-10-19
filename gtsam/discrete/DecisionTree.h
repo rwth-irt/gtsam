@@ -19,14 +19,10 @@
 
 #pragma once
 
-#include <gtsam/base/Testable.h>
 #include <gtsam/base/types.h>
 #include <gtsam/discrete/Assignment.h>
 
-#ifdef GTSAM_ENABLE_BOOST_SERIALIZATION
-#include <boost/serialization/nvp.hpp>
-#endif
-#include <memory>
+#include <boost/shared_ptr.hpp>
 #include <functional>
 #include <iostream>
 #include <map>
@@ -39,23 +35,9 @@
 namespace gtsam {
 
   /**
-   * @brief a decision tree is a function from assignments to values.
-   * @tparam L label for variables
-   * @tparam Y function range (any algebra), e.g., bool, int, double
-   * 
-   * After creating a decision tree on some variables, the tree can be evaluated
-   * on an assignment to those variables. Example:
-   * 
-   * @code{.cpp}
-   * // Create a decision stump one one variable 'a' with values 10 and 20.
-   * DecisionTree<char, int> tree('a', 10, 20);
-   * 
-   * // Evaluate the tree on an assignment to the variable.
-   * int value0 = tree({{'a', 0}}); // value0 = 10
-   * int value1 = tree({{'a', 1}}); // value1 = 20
-   * @endcode
-   * 
-   * More examples can be found in testDecisionTree.cpp
+   * Decision Tree
+   * L = label for variables
+   * Y = function range (any algebra), e.g., bool, int, double
    *
    * @ingroup discrete
    */
@@ -86,7 +68,7 @@ namespace gtsam {
 
     /** ------------------------ Node base class --------------------------- */
     struct Node {
-      using Ptr = std::shared_ptr<const Node>;
+      using Ptr = boost::shared_ptr<const Node>;
 
 #ifdef DT_DEBUG_MEMORY
       static int nrNodes;
@@ -131,14 +113,6 @@ namespace gtsam {
       virtual Ptr apply_g_op_fC(const Choice&, const Binary&) const = 0;
       virtual Ptr choose(const L& label, size_t index) const = 0;
       virtual bool isLeaf() const = 0;
-
-     private:
-#ifdef GTSAM_ENABLE_BOOST_SERIALIZATION
-      /** Serialization function */
-      friend class boost::serialization::access;
-      template <class ARCHIVE>
-      void serialize(ARCHIVE& ar, const unsigned int /*version*/) {}
-#endif
     };
     /** ------------------------ Node base class --------------------------- */
 
@@ -150,8 +124,7 @@ namespace gtsam {
     NodePtr root_;
 
    protected:
-    /** 
-     * Internal recursive function to create from keys, cardinalities, 
+    /** Internal recursive function to create from keys, cardinalities, 
      * and Y values 
      */
     template<typename It, typename ValueIt>
@@ -182,13 +155,7 @@ namespace gtsam {
     /** Create a constant */
     explicit DecisionTree(const Y& y);
 
-    /**
-     * @brief Create tree with 2 assignments `y1`, `y2`, splitting on variable `label`
-     * 
-     * @param label The variable to split on.
-     * @param y1 The value for the first assignment.
-     * @param y2 The value for the second assignment.
-     */
+    /// Create tree with 2 assignments `y1`, `y2`, splitting on variable `label`
     DecisionTree(const L& label, const Y& y1, const Y& y2);
 
     /** Allow Label+Cardinality for convenience */
@@ -269,7 +236,7 @@ namespace gtsam {
     /**
      * @brief Visit all leaves in depth-first fashion.
      *
-     * @param f (side-effect) Function taking the value of the leaf node.
+     * @param f (side-effect) Function taking a value.
      *
      * @note Due to pruning, the number of leaves may not be the same as the
      * number of assignments. E.g. if we have a tree on 2 binary variables with
@@ -278,7 +245,7 @@ namespace gtsam {
      * Example:
      *   int sum = 0;
      *   auto visitor = [&](int y) { sum += y; };
-     *   tree.visit(visitor);
+     *   tree.visitWith(visitor);
      */
     template <typename Func>
     void visit(Func f) const;
@@ -294,8 +261,8 @@ namespace gtsam {
      *
      * Example:
      *   int sum = 0;
-     *   auto visitor = [&](const Leaf& leaf) { sum += leaf.constant(); };
-     *   tree.visitLeaf(visitor);
+     *   auto visitor = [&](int y) { sum += y; };
+     *   tree.visitWith(visitor);
      */
     template <typename Func>
     void visitLeaf(Func f) const;
@@ -319,42 +286,6 @@ namespace gtsam {
 
     /// Return the number of leaves in the tree.
     size_t nrLeaves() const;
-
-    /**
-     * @brief This is a convenience function which returns the total number of
-     * leaf assignments in the decision tree.
-     * This function is not used for anymajor operations within the discrete
-     * factor graph framework.
-     *
-     * Leaf assignments represent the cardinality of each leaf node, e.g. in a
-     * binary tree each leaf has 2 assignments. This includes counts removed
-     * from implicit pruning hence, it will always be >= nrLeaves().
-     *
-     * E.g. we have a decision tree as below, where each node has 2 branches:
-     *
-     * Choice(m1)
-     * 0 Choice(m0)
-     * 0 0 Leaf 0.0
-     * 0 1 Leaf 0.0
-     * 1 Choice(m0)
-     * 1 0 Leaf 1.0
-     * 1 1 Leaf 2.0
-     *
-     * In the unpruned form, the tree will have 4 assignments, 2 for each key,
-     * and 4 leaves.
-     *
-     * In the pruned form, the number of assignments is still 4 but the number
-     * of leaves is now 3, as below:
-     *
-     * Choice(m1)
-     * 0 Leaf 0.0
-     * 1 Choice(m0)
-     * 1 0 Leaf 1.0
-     * 1 1 Leaf 2.0
-     *
-     * @return size_t
-     */
-    size_t nrAssignments() const;
 
     /**
      * @brief Fold a binary function over the tree, returning accumulator.
@@ -433,20 +364,7 @@ namespace gtsam {
     compose(Iterator begin, Iterator end, const L& label) const;
 
     /// @}
-
-   private:
-#ifdef GTSAM_ENABLE_BOOST_SERIALIZATION
-    /** Serialization function */
-    friend class boost::serialization::access;
-    template <class ARCHIVE>
-    void serialize(ARCHIVE& ar, const unsigned int /*version*/) {
-      ar& BOOST_SERIALIZATION_NVP(root_);
-    }
-#endif
   };  // DecisionTree
-
-  template <class L, class Y>
-  struct traits<DecisionTree<L, Y>> : public Testable<DecisionTree<L, Y>> {};
 
   /** free versions of apply */
 
@@ -481,10 +399,10 @@ namespace gtsam {
   template <typename L, typename T1, typename T2>
   std::pair<DecisionTree<L, T1>, DecisionTree<L, T2> > unzip(
       const DecisionTree<L, std::pair<T1, T2> >& input) {
-    return {
+    return std::make_pair(
         DecisionTree<L, T1>(input, [](std::pair<T1, T2> i) { return i.first; }),
-        DecisionTree<L, T2>(input, [](std::pair<T1, T2> i) { return i.second; })
-    };
+        DecisionTree<L, T2>(input,
+                            [](std::pair<T1, T2> i) { return i.second; }));
   }
 
 }  // namespace gtsam

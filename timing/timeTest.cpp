@@ -21,6 +21,7 @@ using namespace gtsam;
 
 int main(int argc, char *argv[]) {
 
+  // FIXME: ticPush_ does not exist
   {
     gttic_(top1);
     gttic_(sub1);

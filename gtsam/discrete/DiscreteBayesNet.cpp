@@ -20,6 +20,9 @@
 #include <gtsam/discrete/DiscreteConditional.h>
 #include <gtsam/inference/FactorGraph-inst.h>
 
+#include <boost/make_shared.hpp>
+#include <boost/range/adaptor/reversed.hpp>
+
 namespace gtsam {
 
 // Instantiate base class
@@ -28,15 +31,6 @@ template class FactorGraph<DiscreteConditional>;
 /* ************************************************************************* */
 bool DiscreteBayesNet::equals(const This& bn, double tol) const {
   return Base::equals(bn, tol);
-}
-
-/* ************************************************************************* */
-double DiscreteBayesNet::logProbability(const DiscreteValues& values) const {
-  // evaluate all conditionals and add
-  double result = 0.0;
-  for (const DiscreteConditional::shared_ptr& conditional : *this)
-    result += conditional->logProbability(values);
-  return result;
 }
 
 /* ************************************************************************* */
@@ -49,6 +43,26 @@ double DiscreteBayesNet::evaluate(const DiscreteValues& values) const {
 }
 
 /* ************************************************************************* */
+#ifdef GTSAM_ALLOW_DEPRECATED_SINCE_V42
+DiscreteValues DiscreteBayesNet::optimize() const {
+  DiscreteValues result;
+  return optimize(result);
+}
+
+DiscreteValues DiscreteBayesNet::optimize(DiscreteValues result) const {
+  // solve each node in turn in topological sort order (parents first)
+#ifdef _MSC_VER
+#pragma message("DiscreteBayesNet::optimize (deprecated) does not compute MPE!")
+#else
+#warning "DiscreteBayesNet::optimize (deprecated) does not compute MPE!"
+#endif
+  for (auto conditional : boost::adaptors::reverse(*this))
+    conditional->solveInPlace(&result);
+  return result;
+}
+#endif
+
+/* ************************************************************************* */
 DiscreteValues DiscreteBayesNet::sample() const {
   DiscreteValues result;
   return sample(result);
@@ -56,9 +70,8 @@ DiscreteValues DiscreteBayesNet::sample() const {
 
 DiscreteValues DiscreteBayesNet::sample(DiscreteValues result) const {
   // sample each node in turn in topological sort order (parents first)
-  for (auto it = std::make_reverse_iterator(end()); it != std::make_reverse_iterator(begin()); ++it) {
-    (*it)->sampleInPlace(&result);
-  }
+  for (auto conditional : boost::adaptors::reverse(*this))
+    conditional->sampleInPlace(&result);
   return result;
 }
 

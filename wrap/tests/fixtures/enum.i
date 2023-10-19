@@ -3,16 +3,13 @@ enum Color { Red, Green, Blue };
 class Pet {
   enum Kind { Dog, Cat };
 
-  Pet(const string &name, Pet::Kind type);
-  void setColor(const Color& color);
-  Color getColor() const;
+  Pet(const string &name, Kind type);
 
   string name;
-  Pet::Kind type;
+  Kind type;
 };
 
 namespace gtsam {
-// Test global enums
 enum VerbosityLM {
   SILENT,
   SUMMARY,
@@ -24,7 +21,6 @@ enum VerbosityLM {
   TRYDELTA
 };
 
-// Test multiple enums in a classs
 class MCU {
   MCU();
 
@@ -54,12 +50,7 @@ class Optimizer {
     VERBOSE
   };
 
-  Optimizer(const This::Verbosity& verbosity);
-
   void setVerbosity(const This::Verbosity value);
-
-  gtsam::Optimizer::Verbosity getVerbosity() const;
-  gtsam::VerbosityLM getVerbosity() const;
 };
 
 typedef gtsam::Optimizer<gtsam::GaussNewtonParams> OptimizerGaussNewtonParams;

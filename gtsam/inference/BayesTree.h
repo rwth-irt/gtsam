@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include <memory>
+#include <boost/shared_ptr.hpp>
 
 #include <gtsam/inference/Key.h>
 #include <gtsam/base/FastList.h>
@@ -67,21 +67,21 @@ namespace gtsam {
   {
   protected:
     typedef BayesTree<CLIQUE> This;
-    typedef std::shared_ptr<This> shared_ptr;
+    typedef boost::shared_ptr<This> shared_ptr;
 
   public:
     typedef CLIQUE Clique; ///< The clique type, normally BayesTreeClique
-    typedef std::shared_ptr<Clique> sharedClique; ///< Shared pointer to a clique
+    typedef boost::shared_ptr<Clique> sharedClique; ///< Shared pointer to a clique
     typedef Clique Node; ///< Synonym for Clique (TODO: remove)
     typedef sharedClique sharedNode; ///< Synonym for sharedClique (TODO: remove)
     typedef typename CLIQUE::ConditionalType ConditionalType;
-    typedef std::shared_ptr<ConditionalType> sharedConditional;
+    typedef boost::shared_ptr<ConditionalType> sharedConditional;
     typedef typename CLIQUE::BayesNetType BayesNetType;
-    typedef std::shared_ptr<BayesNetType> sharedBayesNet;
+    typedef boost::shared_ptr<BayesNetType> sharedBayesNet;
     typedef typename CLIQUE::FactorType FactorType;
-    typedef std::shared_ptr<FactorType> sharedFactor;
+    typedef boost::shared_ptr<FactorType> sharedFactor;
     typedef typename CLIQUE::FactorGraphType FactorGraphType;
-    typedef std::shared_ptr<FactorGraphType> sharedFactorGraph;
+    typedef boost::shared_ptr<FactorGraphType> sharedFactorGraph;
     typedef typename FactorGraphType::Eliminate Eliminate;
     typedef typename CLIQUE::EliminationTraitsType EliminationTraitsType;
 
@@ -112,9 +112,6 @@ namespace gtsam {
     BayesTree(const This& other);
 
     /// @}
-
-    /** Destructor */
-    ~BayesTree(); 
 
     /** Assignment operator */
     This& operator=(const This& other);
@@ -262,7 +259,6 @@ namespace gtsam {
     template<class BAYESTREE, class GRAPH> friend class EliminatableClusterTree;
 
    private:
-#ifdef GTSAM_ENABLE_BOOST_SERIALIZATION
     /** Serialization function */
     friend class boost::serialization::access;
     template<class ARCHIVE>
@@ -270,7 +266,6 @@ namespace gtsam {
       ar & BOOST_SERIALIZATION_NVP(nodes_);
       ar & BOOST_SERIALIZATION_NVP(roots_);
     }
-#endif
 
     /// @}
 
@@ -283,7 +278,7 @@ namespace gtsam {
     typedef CLIQUE CliqueType;
     typedef typename CLIQUE::ConditionalType Base;
 
-    std::shared_ptr<CliqueType> clique;
+    boost::shared_ptr<CliqueType> clique;
 
     /**
      * @brief Construct a new Bayes Tree Orphan Wrapper object
@@ -295,7 +290,7 @@ namespace gtsam {
      * @param clique Orphan clique to add for further consideration in
      * elimination.
      */
-    BayesTreeOrphanWrapper(const std::shared_ptr<CliqueType>& clique)
+    BayesTreeOrphanWrapper(const boost::shared_ptr<CliqueType>& clique)
         : clique(clique) {
       this->keys_.assign(clique->conditional()->beginParents(),
                          clique->conditional()->endParents());

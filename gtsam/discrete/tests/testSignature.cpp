@@ -21,15 +21,17 @@
 #include <gtsam/base/Testable.h>
 #include <gtsam/discrete/Signature.h>
 
+#include <boost/assign/std/vector.hpp>
 #include <vector>
 
 using namespace std;
 using namespace gtsam;
+using namespace boost::assign;
 
 DiscreteKey X(0, 2), Y(1, 3), Z(2, 2);
 
 /* ************************************************************************* */
-TEST(testSignature, SimpleConditional) {
+TEST(testSignature, simple_conditional) {
   Signature sig(X, {Y}, "1/1 2/3 1/4");
   CHECK(sig.table());
   Signature::Table table = *sig.table();
@@ -54,9 +56,13 @@ TEST(testSignature, SimpleConditional) {
 }
 
 /* ************************************************************************* */
-TEST(testSignature, SimpleConditionalNonparser) {
-  Signature::Row row1{1, 1}, row2{2, 3}, row3{1, 4};
-  Signature::Table table{row1, row2, row3};
+TEST(testSignature, simple_conditional_nonparser) {
+  Signature::Table table;
+  Signature::Row row1, row2, row3;
+  row1 += 1.0, 1.0;
+  row2 += 2.0, 3.0;
+  row3 += 1.0, 4.0;
+  table += row1, row2, row3;
 
   Signature sig(X | Y = table);
   CHECK(sig.key() == X);
@@ -77,7 +83,7 @@ TEST(testSignature, SimpleConditionalNonparser) {
 DiscreteKey A(0, 2), S(1, 2), T(2, 2), L(3, 2), B(4, 2), E(5, 2), D(7, 2);
 
 // Make sure we can create all signatures for Asia network with constructor.
-TEST(testSignature, AllExamples) {
+TEST(testSignature, all_examples) {
   DiscreteKey X(6, 2);
   Signature a(A, {}, "99/1");
   Signature s(S, {}, "50/50");
@@ -89,7 +95,7 @@ TEST(testSignature, AllExamples) {
 }
 
 // Make sure we can create all signatures for Asia network with operator magic.
-TEST(testSignature, AllExamplesMagic) {
+TEST(testSignature, all_examples_magic) {
   DiscreteKey X(6, 2);
   Signature a(A % "99/1");
   Signature s(S % "50/50");
@@ -101,7 +107,7 @@ TEST(testSignature, AllExamplesMagic) {
 }
 
 // Check example from docs.
-TEST(testSignature, DoxygenExample) {
+TEST(testSignature, doxygen_example) {
   Signature::Table table{{0.9, 0.1}, {0.2, 0.8}, {0.3, 0.7}, {0.1, 0.9}};
   Signature d1(D, {E, B}, table);
   Signature d2((D | E, B) = "9/1 2/8 3/7 1/9");

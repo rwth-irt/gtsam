@@ -47,7 +47,7 @@ class MultiplyFunctor {
   MultiplyFunctor(double m) : m_(m) {}
 
   Matrix operator()(const Matrix &X,
-                    OptionalJacobian<-1, -1> H = {}) const {
+                    OptionalJacobian<-1, -1> H = boost::none) const {
     if (H) *H = m_ * Matrix::Identity(X.rows() * X.cols(), X.rows() * X.cols());
     return m_ * X;
   }
@@ -57,8 +57,8 @@ class MultiplyFunctor {
 class ProjectionFunctor {
  public:
   Vector operator()(const Matrix &A, const Vector &x,
-                    OptionalJacobian<-1, -1> H1 = {},
-                    OptionalJacobian<-1, -1> H2 = {}) const {
+                    OptionalJacobian<-1, -1> H1 = boost::none,
+                    OptionalJacobian<-1, -1> H2 = boost::none) const {
     if (H1) {
       H1->resize(x.size(), A.size());
       *H1 << I_3x3, I_3x3, I_3x3;
@@ -160,7 +160,7 @@ TEST(FunctorizedFactor, Functional) {
   Matrix X = Matrix::Identity(3, 3);
   Matrix measurement = multiplier * Matrix::Identity(3, 3);
 
-  std::function<Matrix(Matrix, OptionalMatrixType)> functional =
+  std::function<Matrix(Matrix, boost::optional<Matrix &>)> functional =
       MultiplyFunctor(multiplier);
   auto factor =
       MakeFunctorizedFactor<Matrix>(key, measurement, model, functional);
@@ -178,7 +178,7 @@ TEST(FunctorizedFactor, Lambda) {
   Matrix measurement = multiplier * Matrix::Identity(3, 3);
 
   auto lambda = [multiplier](const Matrix &X,
-                             OptionalJacobian<-1, -1> H = {}) {
+                             OptionalJacobian<-1, -1> H = boost::none) {
     if (H)
       *H = multiplier *
            Matrix::Identity(X.rows() * X.cols(), X.rows() * X.cols());
@@ -233,7 +233,8 @@ TEST(FunctorizedFactor, Functional2) {
   Vector3 x(1, 2, 3);
   Vector measurement = A * x;
 
-  std::function<Matrix(Matrix, Matrix, OptionalMatrixType, OptionalMatrixType)>
+  std::function<Matrix(Matrix, Matrix, boost::optional<Matrix &>,
+                       boost::optional<Matrix &>)>
       functional = ProjectionFunctor();
   auto factor = MakeFunctorizedFactor2<Matrix, Vector>(keyA, keyx, measurement,
                                                        model2, functional);
@@ -251,8 +252,8 @@ TEST(FunctorizedFactor, Lambda2) {
   Matrix measurement = A * x;
 
   auto lambda = [](const Matrix &A, const Vector &x,
-                   OptionalJacobian<-1, -1> H1 = {},
-                   OptionalJacobian<-1, -1> H2 = {}) {
+                   OptionalJacobian<-1, -1> H1 = boost::none,
+                   OptionalJacobian<-1, -1> H2 = boost::none) {
     if (H1) {
       H1->resize(x.size(), A.size());
       *H1 << I_3x3, I_3x3, I_3x3;

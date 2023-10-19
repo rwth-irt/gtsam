@@ -25,6 +25,7 @@ namespace gtsam {
 #include <gtsam/geometry/Unit3.h>
 #include <gtsam/navigation/ImuBias.h>
 #include <gtsam/navigation/NavState.h>
+#include <gtsam/basis/ParameterMatrix.h>
 
 #include <gtsam/nonlinear/GraphvizFormatting.h>
 class GraphvizFormatting : gtsam::DotWriter {
@@ -86,10 +87,7 @@ class NonlinearFactorGraph {
                 const gtsam::noiseModel::Base* noiseModel);
 
   // NonlinearFactorGraph
-  void printErrors(const gtsam::Values& values,
-                   const string& str = "NonlinearFactorGraph: ",
-                   const gtsam::KeyFormatter& keyFormatter =
-                       gtsam::DefaultKeyFormatter) const;
+  void printErrors(const gtsam::Values& values) const;
   double error(const gtsam::Values& values) const;
   double probPrime(const gtsam::Values& values) const;
   gtsam::Ordering orderingCOLAMD() const;
@@ -112,10 +110,13 @@ class NonlinearFactorGraph {
 };
 
 #include <gtsam/nonlinear/NonlinearFactor.h>
-virtual class NonlinearFactor : gtsam::Factor {
+virtual class NonlinearFactor {
   // Factor base class
+  size_t size() const;
+  gtsam::KeyVector keys() const;
   void print(string s = "", const gtsam::KeyFormatter& keyFormatter =
                                 gtsam::DefaultKeyFormatter) const;
+  void printKeys(string s) const;
   // NonlinearFactor
   bool equals(const gtsam::NonlinearFactor& other, double tol) const;
   double error(const gtsam::Values& c) const;
@@ -132,6 +133,230 @@ virtual class NoiseModelFactor : gtsam::NonlinearFactor {
   gtsam::noiseModel::Base* noiseModel() const;
   Vector unwhitenedError(const gtsam::Values& x) const;
   Vector whitenedError(const gtsam::Values& x) const;
+};
+
+#include <gtsam/nonlinear/Values.h>
+class Values {
+  Values();
+  Values(const gtsam::Values& other);
+
+  size_t size() const;
+  bool empty() const;
+  void clear();
+  size_t dim() const;
+
+  void print(string s = "", const gtsam::KeyFormatter& keyFormatter =
+                                gtsam::DefaultKeyFormatter) const;
+  bool equals(const gtsam::Values& other, double tol) const;
+
+  void insert(const gtsam::Values& values);
+  void update(const gtsam::Values& values);
+  void insert_or_assign(const gtsam::Values& values);
+  void erase(size_t j);
+  void swap(gtsam::Values& values);
+
+  bool exists(size_t j) const;
+  gtsam::KeyVector keys() const;
+
+  gtsam::VectorValues zeroVectors() const;
+
+  gtsam::Values retract(const gtsam::VectorValues& delta) const;
+  gtsam::VectorValues localCoordinates(const gtsam::Values& cp) const;
+
+  // enabling serialization functionality
+  void serialize() const;
+
+  // New in 4.0, we have to specialize every insert/update/at to generate
+  // wrappers Instead of the old: void insert(size_t j, const gtsam::Value&
+  // value); void update(size_t j, const gtsam::Value& val); gtsam::Value
+  // at(size_t j) const;
+
+  // The order is important: Vector has to precede Point2/Point3 so `atVector`
+  // can work for those fixed-size vectors.
+  void insert(size_t j, Vector vector);
+  void insert(size_t j, Matrix matrix);
+  void insert(size_t j, const gtsam::Point2& point2);
+  void insert(size_t j, const gtsam::Point3& point3);
+  void insert(size_t j, const gtsam::Rot2& rot2);
+  void insert(size_t j, const gtsam::Pose2& pose2);
+  void insert(size_t j, const gtsam::SO3& R);
+  void insert(size_t j, const gtsam::SO4& Q);
+  void insert(size_t j, const gtsam::SOn& P);
+  void insert(size_t j, const gtsam::Rot3& rot3);
+  void insert(size_t j, const gtsam::Pose3& pose3);
+  void insert(size_t j, const gtsam::Unit3& unit3);
+  void insert(size_t j, const gtsam::Cal3_S2& cal3_s2);
+  void insert(size_t j, const gtsam::Cal3DS2& cal3ds2);
+  void insert(size_t j, const gtsam::Cal3Bundler& cal3bundler);
+  void insert(size_t j, const gtsam::Cal3Fisheye& cal3fisheye);
+  void insert(size_t j, const gtsam::Cal3Unified& cal3unified);
+  void insert(size_t j, const gtsam::EssentialMatrix& essential_matrix);
+  void insert(size_t j, const gtsam::PinholeCamera<gtsam::Cal3_S2>& camera);
+  void insert(size_t j, const gtsam::PinholeCamera<gtsam::Cal3Bundler>& camera);
+  void insert(size_t j, const gtsam::PinholeCamera<gtsam::Cal3Fisheye>& camera);
+  void insert(size_t j, const gtsam::PinholeCamera<gtsam::Cal3Unified>& camera);
+  void insert(size_t j, const gtsam::PinholePose<gtsam::Cal3_S2>& camera);
+  void insert(size_t j, const gtsam::PinholePose<gtsam::Cal3Bundler>& camera);
+  void insert(size_t j, const gtsam::PinholePose<gtsam::Cal3Fisheye>& camera);
+  void insert(size_t j, const gtsam::PinholePose<gtsam::Cal3Unified>& camera);
+  void insert(size_t j, const gtsam::imuBias::ConstantBias& constant_bias);
+  void insert(size_t j, const gtsam::NavState& nav_state);
+  void insert(size_t j, double c);
+  void insert(size_t j, const gtsam::ParameterMatrix<1>& X);
+  void insert(size_t j, const gtsam::ParameterMatrix<2>& X);
+  void insert(size_t j, const gtsam::ParameterMatrix<3>& X);
+  void insert(size_t j, const gtsam::ParameterMatrix<4>& X);
+  void insert(size_t j, const gtsam::ParameterMatrix<5>& X);
+  void insert(size_t j, const gtsam::ParameterMatrix<6>& X);
+  void insert(size_t j, const gtsam::ParameterMatrix<7>& X);
+  void insert(size_t j, const gtsam::ParameterMatrix<8>& X);
+  void insert(size_t j, const gtsam::ParameterMatrix<9>& X);
+  void insert(size_t j, const gtsam::ParameterMatrix<10>& X);
+  void insert(size_t j, const gtsam::ParameterMatrix<11>& X);
+  void insert(size_t j, const gtsam::ParameterMatrix<12>& X);
+  void insert(size_t j, const gtsam::ParameterMatrix<13>& X);
+  void insert(size_t j, const gtsam::ParameterMatrix<14>& X);
+  void insert(size_t j, const gtsam::ParameterMatrix<15>& X);
+
+  template <T = {gtsam::Point2,
+                 gtsam::Point3}>
+  void insert(size_t j, const T& val);
+
+  void update(size_t j, const gtsam::Point2& point2);
+  void update(size_t j, const gtsam::Point3& point3);
+  void update(size_t j, const gtsam::Rot2& rot2);
+  void update(size_t j, const gtsam::Pose2& pose2);
+  void update(size_t j, const gtsam::SO3& R);
+  void update(size_t j, const gtsam::SO4& Q);
+  void update(size_t j, const gtsam::SOn& P);
+  void update(size_t j, const gtsam::Rot3& rot3);
+  void update(size_t j, const gtsam::Pose3& pose3);
+  void update(size_t j, const gtsam::Unit3& unit3);
+  void update(size_t j, const gtsam::Cal3_S2& cal3_s2);
+  void update(size_t j, const gtsam::Cal3DS2& cal3ds2);
+  void update(size_t j, const gtsam::Cal3Bundler& cal3bundler);
+  void update(size_t j, const gtsam::Cal3Fisheye& cal3fisheye);
+  void update(size_t j, const gtsam::Cal3Unified& cal3unified);
+  void update(size_t j, const gtsam::EssentialMatrix& essential_matrix);
+  void update(size_t j, const gtsam::PinholeCamera<gtsam::Cal3_S2>& camera);
+  void update(size_t j, const gtsam::PinholeCamera<gtsam::Cal3Bundler>& camera);
+  void update(size_t j, const gtsam::PinholeCamera<gtsam::Cal3Fisheye>& camera);
+  void update(size_t j, const gtsam::PinholeCamera<gtsam::Cal3Unified>& camera);
+  void update(size_t j, const gtsam::PinholePose<gtsam::Cal3_S2>& camera);
+  void update(size_t j, const gtsam::PinholePose<gtsam::Cal3Bundler>& camera);
+  void update(size_t j, const gtsam::PinholePose<gtsam::Cal3Fisheye>& camera);
+  void update(size_t j, const gtsam::PinholePose<gtsam::Cal3Unified>& camera);
+  void update(size_t j, const gtsam::imuBias::ConstantBias& constant_bias);
+  void update(size_t j, const gtsam::NavState& nav_state);
+  void update(size_t j, Vector vector);
+  void update(size_t j, Matrix matrix);
+  void update(size_t j, double c);
+  void update(size_t j, const gtsam::ParameterMatrix<1>& X);
+  void update(size_t j, const gtsam::ParameterMatrix<2>& X);
+  void update(size_t j, const gtsam::ParameterMatrix<3>& X);
+  void update(size_t j, const gtsam::ParameterMatrix<4>& X);
+  void update(size_t j, const gtsam::ParameterMatrix<5>& X);
+  void update(size_t j, const gtsam::ParameterMatrix<6>& X);
+  void update(size_t j, const gtsam::ParameterMatrix<7>& X);
+  void update(size_t j, const gtsam::ParameterMatrix<8>& X);
+  void update(size_t j, const gtsam::ParameterMatrix<9>& X);
+  void update(size_t j, const gtsam::ParameterMatrix<10>& X);
+  void update(size_t j, const gtsam::ParameterMatrix<11>& X);
+  void update(size_t j, const gtsam::ParameterMatrix<12>& X);
+  void update(size_t j, const gtsam::ParameterMatrix<13>& X);
+  void update(size_t j, const gtsam::ParameterMatrix<14>& X);
+  void update(size_t j, const gtsam::ParameterMatrix<15>& X);
+
+  void insert_or_assign(size_t j, const gtsam::Point2& point2);
+  void insert_or_assign(size_t j, const gtsam::Point3& point3);
+  void insert_or_assign(size_t j, const gtsam::Rot2& rot2);
+  void insert_or_assign(size_t j, const gtsam::Pose2& pose2);
+  void insert_or_assign(size_t j, const gtsam::SO3& R);
+  void insert_or_assign(size_t j, const gtsam::SO4& Q);
+  void insert_or_assign(size_t j, const gtsam::SOn& P);
+  void insert_or_assign(size_t j, const gtsam::Rot3& rot3);
+  void insert_or_assign(size_t j, const gtsam::Pose3& pose3);
+  void insert_or_assign(size_t j, const gtsam::Unit3& unit3);
+  void insert_or_assign(size_t j, const gtsam::Cal3_S2& cal3_s2);
+  void insert_or_assign(size_t j, const gtsam::Cal3DS2& cal3ds2);
+  void insert_or_assign(size_t j, const gtsam::Cal3Bundler& cal3bundler);
+  void insert_or_assign(size_t j, const gtsam::Cal3Fisheye& cal3fisheye);
+  void insert_or_assign(size_t j, const gtsam::Cal3Unified& cal3unified);
+  void insert_or_assign(size_t j, const gtsam::EssentialMatrix& essential_matrix);
+  void insert_or_assign(size_t j, const gtsam::PinholeCamera<gtsam::Cal3_S2>& camera);
+  void insert_or_assign(size_t j, const gtsam::PinholeCamera<gtsam::Cal3Bundler>& camera);
+  void insert_or_assign(size_t j, const gtsam::PinholeCamera<gtsam::Cal3Fisheye>& camera);
+  void insert_or_assign(size_t j, const gtsam::PinholeCamera<gtsam::Cal3Unified>& camera);
+  void insert_or_assign(size_t j, const gtsam::PinholePose<gtsam::Cal3_S2>& camera);
+  void insert_or_assign(size_t j, const gtsam::PinholePose<gtsam::Cal3Bundler>& camera);
+  void insert_or_assign(size_t j, const gtsam::PinholePose<gtsam::Cal3Fisheye>& camera);
+  void insert_or_assign(size_t j, const gtsam::PinholePose<gtsam::Cal3Unified>& camera);
+  void insert_or_assign(size_t j, const gtsam::imuBias::ConstantBias& constant_bias);
+  void insert_or_assign(size_t j, const gtsam::NavState& nav_state);
+  void insert_or_assign(size_t j, Vector vector);
+  void insert_or_assign(size_t j, Matrix matrix);
+  void insert_or_assign(size_t j, double c);
+  void insert_or_assign(size_t j, const gtsam::ParameterMatrix<1>& X);
+  void insert_or_assign(size_t j, const gtsam::ParameterMatrix<2>& X);
+  void insert_or_assign(size_t j, const gtsam::ParameterMatrix<3>& X);
+  void insert_or_assign(size_t j, const gtsam::ParameterMatrix<4>& X);
+  void insert_or_assign(size_t j, const gtsam::ParameterMatrix<5>& X);
+  void insert_or_assign(size_t j, const gtsam::ParameterMatrix<6>& X);
+  void insert_or_assign(size_t j, const gtsam::ParameterMatrix<7>& X);
+  void insert_or_assign(size_t j, const gtsam::ParameterMatrix<8>& X);
+  void insert_or_assign(size_t j, const gtsam::ParameterMatrix<9>& X);
+  void insert_or_assign(size_t j, const gtsam::ParameterMatrix<10>& X);
+  void insert_or_assign(size_t j, const gtsam::ParameterMatrix<11>& X);
+  void insert_or_assign(size_t j, const gtsam::ParameterMatrix<12>& X);
+  void insert_or_assign(size_t j, const gtsam::ParameterMatrix<13>& X);
+  void insert_or_assign(size_t j, const gtsam::ParameterMatrix<14>& X);
+  void insert_or_assign(size_t j, const gtsam::ParameterMatrix<15>& X);
+
+  template <T = {gtsam::Point2,
+                 gtsam::Point3,
+                 gtsam::Rot2,
+                 gtsam::Pose2,
+                 gtsam::SO3,
+                 gtsam::SO4,
+                 gtsam::SOn,
+                 gtsam::Rot3,
+                 gtsam::Pose3,
+                 gtsam::Unit3,
+                 gtsam::Cal3_S2,
+                 gtsam::Cal3DS2,
+                 gtsam::Cal3Bundler,
+                 gtsam::Cal3Fisheye,
+                 gtsam::Cal3Unified,
+                 gtsam::EssentialMatrix,
+                 gtsam::PinholeCamera<gtsam::Cal3_S2>,
+                 gtsam::PinholeCamera<gtsam::Cal3Bundler>,
+                 gtsam::PinholeCamera<gtsam::Cal3Fisheye>,
+                 gtsam::PinholeCamera<gtsam::Cal3Unified>,
+                 gtsam::PinholePose<gtsam::Cal3_S2>,
+                 gtsam::PinholePose<gtsam::Cal3Bundler>,
+                 gtsam::PinholePose<gtsam::Cal3Fisheye>,
+                 gtsam::PinholePose<gtsam::Cal3Unified>,
+                 gtsam::imuBias::ConstantBias,
+                 gtsam::NavState,
+                 Vector,
+                 Matrix,
+                 double,
+                 gtsam::ParameterMatrix<1>,
+                 gtsam::ParameterMatrix<2>,
+                 gtsam::ParameterMatrix<3>,
+                 gtsam::ParameterMatrix<4>,
+                 gtsam::ParameterMatrix<5>,
+                 gtsam::ParameterMatrix<6>,
+                 gtsam::ParameterMatrix<7>,
+                 gtsam::ParameterMatrix<8>,
+                 gtsam::ParameterMatrix<9>,
+                 gtsam::ParameterMatrix<10>,
+                 gtsam::ParameterMatrix<11>,
+                 gtsam::ParameterMatrix<12>,
+                 gtsam::ParameterMatrix<13>,
+                 gtsam::ParameterMatrix<14>,
+                 gtsam::ParameterMatrix<15>}>
+  T at(size_t j);
 };
 
 #include <gtsam/nonlinear/Marginals.h>
@@ -167,7 +392,7 @@ virtual class LinearContainerFactor : gtsam::NonlinearFactor {
   LinearContainerFactor(gtsam::GaussianFactor* factor);
 
   gtsam::GaussianFactor* factor() const;
-  //  const std::optional<Values>& linearizationPoint() const;
+  //  const boost::optional<Values>& linearizationPoint() const;
 
   bool isJacobian() const;
   gtsam::JacobianFactor* toJacobian() const;
@@ -304,8 +529,8 @@ virtual class GncParams {
   double relativeCostTol;
   double weightsTol;
   gtsam::This::Verbosity verbosity;
-  gtsam::This::IndexVector knownInliers;
-  gtsam::This::IndexVector knownOutliers;
+  gtsam::KeyVector knownInliers;
+  gtsam::KeyVector knownOutliers;
 
   void setLossType(const gtsam::GncLossType type);
   void setMaxIterations(const size_t maxIter);
@@ -313,8 +538,8 @@ virtual class GncParams {
   void setRelativeCostTol(double value);
   void setWeightsTol(double value);
   void setVerbosityGNC(const gtsam::This::Verbosity value);
-  void setKnownInliers(const gtsam::This::IndexVector& knownIn);
-  void setKnownOutliers(const gtsam::This::IndexVector& knownOut);
+  void setKnownInliers(const gtsam::KeyVector& knownIn);
+  void setKnownOutliers(const gtsam::KeyVector& knownOut);
   void print(const string& str = "GncParams: ") const;
   
   enum Verbosity {
@@ -357,7 +582,6 @@ virtual class DoglegOptimizer : gtsam::NonlinearOptimizer {
   double getDelta() const;
 };
   
-// TODO(dellaert): This will only work when GTSAM_USE_BOOST_FEATURES is true.
 #include <gtsam/nonlinear/GncOptimizer.h>
 template<PARAMS>
 virtual class GncOptimizer {
@@ -507,21 +731,25 @@ class ISAM2 {
   gtsam::ISAM2Result update(const gtsam::NonlinearFactorGraph& newFactors,
                             const gtsam::Values& newTheta,
                             const gtsam::FactorIndices& removeFactorIndices,
-                            const gtsam::KeyGroupMap& constrainedKeys,
+                            gtsam::KeyGroupMap& constrainedKeys,
                             const gtsam::KeyList& noRelinKeys);
   gtsam::ISAM2Result update(const gtsam::NonlinearFactorGraph& newFactors,
                             const gtsam::Values& newTheta,
                             const gtsam::FactorIndices& removeFactorIndices,
                             gtsam::KeyGroupMap& constrainedKeys,
                             const gtsam::KeyList& noRelinKeys,
+                            const gtsam::KeyList& extraReelimKeys);
+  gtsam::ISAM2Result update(const gtsam::NonlinearFactorGraph& newFactors,
+                            const gtsam::Values& newTheta,
+                            const gtsam::FactorIndices& removeFactorIndices,
+                            gtsam::KeyGroupMap& constrainedKeys,
+                            const gtsam::KeyList& noRelinKeys,
                             const gtsam::KeyList& extraReelimKeys,
-                            bool force_relinearize = false);
+                            bool force_relinearize);
 
   gtsam::ISAM2Result update(const gtsam::NonlinearFactorGraph& newFactors,
                             const gtsam::Values& newTheta,
                             const gtsam::ISAM2UpdateParams& updateParams);
-
-  double error(const gtsam::VectorValues& values) const;
 
   gtsam::Values getLinearizationPoint() const;
   bool valueExists(gtsam::Key key) const;
@@ -548,8 +776,9 @@ class ISAM2 {
 
   string dot(const gtsam::KeyFormatter& keyFormatter =
                  gtsam::DefaultKeyFormatter) const;
-  void saveGraph(string s, const gtsam::KeyFormatter& keyFormatter =
-                               gtsam::DefaultKeyFormatter) const;
+  void saveGraph(string s,
+                const gtsam::KeyFormatter& keyFormatter =
+                 gtsam::DefaultKeyFormatter) const;
 };
 
 #include <gtsam/nonlinear/NonlinearISAM.h>
@@ -643,66 +872,5 @@ virtual class NonlinearEquality2 : gtsam::NoiseModelFactor {
   NonlinearEquality2(gtsam::Key key1, gtsam::Key key2, double mu = 1e4);
   gtsam::Vector evaluateError(const T& x1, const T& x2);
 };
-
-#include <gtsam/nonlinear/FixedLagSmoother.h>
-class FixedLagSmootherKeyTimestampMapValue {
-  FixedLagSmootherKeyTimestampMapValue(size_t key, double timestamp);
-  FixedLagSmootherKeyTimestampMapValue(const gtsam::FixedLagSmootherKeyTimestampMapValue& other);
-};
-
-class FixedLagSmootherKeyTimestampMap {
-  FixedLagSmootherKeyTimestampMap();
-  FixedLagSmootherKeyTimestampMap(const gtsam::FixedLagSmootherKeyTimestampMap& other);
-
-  // Note: no print function
-
-  // common STL methods
-  size_t size() const;
-  bool empty() const;
-  void clear();
-
-  double at(const size_t key) const;
-  void insert(const gtsam::FixedLagSmootherKeyTimestampMapValue& value);
-};
-
-class FixedLagSmootherResult {
-  size_t getIterations() const;
-  size_t getNonlinearVariables() const;
-  size_t getLinearVariables() const;
-  double getError() const;
-};
-
-virtual class FixedLagSmoother {
-  void print(string s) const;
-  bool equals(const gtsam::FixedLagSmoother& rhs, double tol) const;
-
-  gtsam::FixedLagSmootherKeyTimestampMap timestamps() const;
-  double smootherLag() const;
-
-  gtsam::FixedLagSmootherResult update(const gtsam::NonlinearFactorGraph &newFactors,
-                                       const gtsam::Values &newTheta,
-                                       const gtsam::FixedLagSmootherKeyTimestampMap &timestamps);
-  gtsam::FixedLagSmootherResult update(const gtsam::NonlinearFactorGraph &newFactors,
-                                       const gtsam::Values &newTheta,
-                                       const gtsam::FixedLagSmootherKeyTimestampMap &timestamps,
-                                       const gtsam::FactorIndices &factorsToRemove);
-  gtsam::Values calculateEstimate() const;
-};
-
-#include <gtsam/nonlinear/BatchFixedLagSmoother.h>
-virtual class BatchFixedLagSmoother : gtsam::FixedLagSmoother {
-  BatchFixedLagSmoother();
-  BatchFixedLagSmoother(double smootherLag);
-  BatchFixedLagSmoother(double smootherLag, const gtsam::LevenbergMarquardtParams& params);
-
-  void print(string s = "BatchFixedLagSmoother:\n") const;
-
-  gtsam::LevenbergMarquardtParams params() const;
-  template <VALUE = {gtsam::Point2, gtsam::Rot2, gtsam::Pose2, gtsam::Point3,
-                     gtsam::Rot3, gtsam::Pose3, gtsam::Cal3_S2, gtsam::Cal3DS2,
-                     Vector, Matrix}>
-  VALUE calculateEstimate(size_t key) const;
-};
-
 
 }  // namespace gtsam

@@ -35,15 +35,11 @@ namespace gtsam {
  * optimized in x1 frame in the optimization.
  */
 class GTSAM_UNSTABLE_EXPORT LocalOrientedPlane3Factor
-    : public NoiseModelFactorN<Pose3, Pose3, OrientedPlane3> {
+    : public NoiseModelFactor3<Pose3, Pose3, OrientedPlane3> {
  protected:
   OrientedPlane3 measured_p_;
-  typedef NoiseModelFactorN<Pose3, Pose3, OrientedPlane3> Base;
+  typedef NoiseModelFactor3<Pose3, Pose3, OrientedPlane3> Base;
 public:
-
-  // Provide access to the Matrix& version of evaluateError:
-  using Base::evaluateError;
-
   /// Constructor
   LocalOrientedPlane3Factor() {}
 
@@ -88,8 +84,10 @@ public:
     * world frame.
     */
   Vector evaluateError(const Pose3& wTwi, const Pose3& wTwa,
-      const OrientedPlane3& a_plane, OptionalMatrixType H1, 
-	  OptionalMatrixType H2, OptionalMatrixType H3) const override;
+      const OrientedPlane3& a_plane,
+      boost::optional<Matrix&> H1 = boost::none,
+      boost::optional<Matrix&> H2 = boost::none,
+      boost::optional<Matrix&> H3 = boost::none) const override;
 };
 
 }  // namespace gtsam

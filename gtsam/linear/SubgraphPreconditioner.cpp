@@ -24,6 +24,9 @@
 #include <gtsam/base/types.h>
 #include <gtsam/base/Vector.h>
 
+#include <boost/algorithm/string.hpp>
+#include <boost/range/adaptor/reversed.hpp>
+
 #include <stdexcept>
 
 using std::cout;
@@ -79,9 +82,9 @@ static GaussianFactorGraph convertToJacobianFactors(
   GaussianFactorGraph result;
   for (const auto &factor : gfg) 
     if (factor) {
-      auto jf = std::dynamic_pointer_cast<JacobianFactor>(factor);
+      auto jf = boost::dynamic_pointer_cast<JacobianFactor>(factor);
       if (!jf) {
-        jf = std::make_shared<JacobianFactor>(*factor);
+        jf = boost::make_shared<JacobianFactor>(*factor);
       }
       result.push_back(jf);
     }
@@ -107,7 +110,7 @@ VectorValues SubgraphPreconditioner::x(const VectorValues& y) const {
 
 /* ************************************************************************* */
 double SubgraphPreconditioner::error(const VectorValues& y) const {
-  Errors e = createErrors(y);
+  Errors e(y);
   VectorValues x = this->x(y);
   Errors e2 = Ab2_.gaussianErrors(x);
   return 0.5 * (dot(e, e) + dot(e2,e2));
@@ -126,7 +129,7 @@ VectorValues SubgraphPreconditioner::gradient(const VectorValues &y) const {
 /* ************************************************************************* */
 // Apply operator A, A*y = [I;A2*inv(R1)]*y = [y; A2*inv(R1)*y]
 Errors SubgraphPreconditioner::operator*(const VectorValues &y) const {
-  Errors e = createErrors(y);
+  Errors e(y);
   VectorValues x = Rc1_.backSubstitute(y); /* x=inv(R1)*y */
   Errors e2 = Ab2_ * x;                      /* A2*x */
   e.splice(e.end(), e2);
@@ -202,8 +205,7 @@ void SubgraphPreconditioner::solve(const Vector &y, Vector &x) const {
   assert(x.size() == y.size());
 
   /* back substitute */
-  for (auto it = std::make_reverse_iterator(Rc1_.end()); it != std::make_reverse_iterator(Rc1_.begin()); ++it) {
-    auto& cg = *it;
+  for (const auto &cg : boost::adaptors::reverse(Rc1_)) {
     /* collect a subvector of x that consists of the parents of cg (S) */
     const KeyVector parentKeys(cg->beginParents(), cg->endParents());
     const KeyVector frontalKeys(cg->beginFrontals(), cg->endFrontals());

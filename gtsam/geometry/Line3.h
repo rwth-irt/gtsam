@@ -32,8 +32,8 @@ class Line3;
  * @return Transformed line in camera frame
  */
 GTSAM_EXPORT Line3 transformTo(const Pose3 &wTc, const Line3 &wL,
-                  OptionalJacobian<4, 6> Dpose = {},
-                  OptionalJacobian<4, 4> Dline = {});
+                  OptionalJacobian<4, 6> Dpose = boost::none,
+                  OptionalJacobian<4, 4> Dline = boost::none);
 
 
 /**
@@ -69,8 +69,8 @@ class GTSAM_EXPORT Line3 {
    * @return q: resulting line after adding the increment and mapping to the manifold
    */
   Line3 retract(const Vector4 &v,
-                OptionalJacobian<4, 4> Dp = {},
-                OptionalJacobian<4, 4> Dv = {}) const;
+                OptionalJacobian<4, 4> Dp = boost::none,
+                OptionalJacobian<4, 4> Dv = boost::none) const;
 
   /**
    * The localCoordinates method is the inverse of retract and finds the difference
@@ -82,8 +82,8 @@ class GTSAM_EXPORT Line3 {
    * @return v: difference in the tangent space
    */
   Vector4 localCoordinates(const Line3 &q,
-                           OptionalJacobian<4, 4> Dp = {},
-                           OptionalJacobian<4, 4> Dq = {}) const;
+                           OptionalJacobian<4, 4> Dp = boost::none,
+                           OptionalJacobian<4, 4> Dq = boost::none) const;
 
   /**
    * Print R, a, b
@@ -105,7 +105,7 @@ class GTSAM_EXPORT Line3 {
    * @return Unit3 - projected line in image plane, in homogenous coordinates.
    * We use Unit3 since it is a manifold with the right dimension.
    */
-  Unit3 project(OptionalJacobian<2, 4> Dline = {}) const;
+  Unit3 project(OptionalJacobian<2, 4> Dline = boost::none) const;
 
   /**
    * Returns point on the line that is at a certain distance starting from the
@@ -146,7 +146,7 @@ class GTSAM_EXPORT Line3 {
    * @param Dline -  OptionalJacobian of transformed line with respect to l
    * @return Transformed line in camera frame
    */
-  GTSAM_EXPORT friend Line3 transformTo(const Pose3 &wTc, const Line3 &wL,
+  friend Line3 transformTo(const Pose3 &wTc, const Line3 &wL,
                            OptionalJacobian<4, 6> Dpose,
                            OptionalJacobian<4, 4> Dline);
 };

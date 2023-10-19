@@ -35,8 +35,6 @@
 #    include <cxxabi.h>
 #endif
 
-PYBIND11_NAMESPACE_BEGIN(PYBIND11_NAMESPACE)
-
 /* https://stackoverflow.com/questions/46798456/handling-gccs-noexcept-type-warning
    This warning is about ABI compatibility, not code health.
    It is only actually needed in a couple places, but apparently GCC 7 "generates this warning if
@@ -45,10 +43,11 @@ PYBIND11_NAMESPACE_BEGIN(PYBIND11_NAMESPACE)
    No other GCC version generates this warning.
  */
 #if defined(__GNUC__) && __GNUC__ == 7
-PYBIND11_WARNING_DISABLE_GCC("-Wnoexcept-type")
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wnoexcept-type"
 #endif
 
-PYBIND11_WARNING_DISABLE_MSVC(4127)
+PYBIND11_NAMESPACE_BEGIN(PYBIND11_NAMESPACE)
 
 PYBIND11_NAMESPACE_BEGIN(detail)
 
@@ -84,7 +83,6 @@ public:
     cpp_function() = default;
     // NOLINTNEXTLINE(google-explicit-constructor)
     cpp_function(std::nullptr_t) {}
-    cpp_function(std::nullptr_t, const is_setter &) {}
 
     /// Construct a cpp_function from a vanilla function pointer
     template <typename Return, typename... Args, typename... Extra>
@@ -179,22 +177,22 @@ protected:
         auto *rec = unique_rec.get();
 
         /* Store the capture object directly in the function record if there is enough space */
-        if (sizeof(capture) <= sizeof(rec->data)) {
+        if (PYBIND11_SILENCE_MSVC_C4127(sizeof(capture) <= sizeof(rec->data))) {
             /* Without these pragmas, GCC warns that there might not be
                enough space to use the placement new operator. However, the
                'if' statement above ensures that this is the case. */
-            PYBIND11_WARNING_PUSH
-
-#if defined(__GNUG__) && __GNUC__ >= 6
-            PYBIND11_WARNING_DISABLE_GCC("-Wplacement-new")
+#if defined(__GNUG__) && __GNUC__ >= 6 && !defined(__clang__) && !defined(__INTEL_COMPILER)
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wplacement-new"
 #endif
-
             new ((capture *) &rec->data) capture{std::forward<Func>(f)};
-
-#if !PYBIND11_HAS_STD_LAUNDER
-            PYBIND11_WARNING_DISABLE_GCC("-Wstrict-aliasing")
+#if defined(__GNUG__) && __GNUC__ >= 6 && !defined(__clang__) && !defined(__INTEL_COMPILER)
+#    pragma GCC diagnostic pop
 #endif
-
+#if defined(__GNUG__) && !PYBIND11_HAS_STD_LAUNDER && !defined(__INTEL_COMPILER)
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wstrict-aliasing"
+#endif
             // UB without std::launder, but without breaking ABI and/or
             // a significant refactoring it's "impossible" to solve.
             if (!std::is_trivially_destructible<capture>::value) {
@@ -204,7 +202,9 @@ protected:
                     data->~capture();
                 };
             }
-            PYBIND11_WARNING_POP
+#if defined(__GNUG__) && !PYBIND11_HAS_STD_LAUNDER && !defined(__INTEL_COMPILER)
+#    pragma GCC diagnostic pop
+#endif
         } else {
             rec->data[0] = new capture{std::forward<Func>(f)};
             rec->free_data = [](function_record *r) { delete ((capture *) r->data[0]); };
@@ -245,16 +245,10 @@ protected:
             using Guard = extract_guard_t<Extra...>;
 
             /* Perform the function call */
-            handle result;
-            if (call.func.is_setter) {
-                (void) std::move(args_converter).template call<Return, Guard>(cap->f);
-                result = none().release();
-            } else {
-                result = cast_out::cast(
-                    std::move(args_converter).template call<Return, Guard>(cap->f),
-                    policy,
-                    call.parent);
-            }
+            handle result
+                = cast_out::cast(std::move(args_converter).template call<Return, Guard>(cap->f),
+                                 policy,
+                                 call.parent);
 
             /* Invoke call policy post-call hook */
             process_attributes<Extra...>::postcall(call, result);
@@ -474,20 +468,13 @@ protected:
         if (rec->sibling) {
             if (PyCFunction_Check(rec->sibling.ptr())) {
                 auto *self = PyCFunction_GET_SELF(rec->sibling.ptr());
-                if (!isinstance<capsule>(self)) {
+                capsule rec_capsule = isinstance<capsule>(self) ? reinterpret_borrow<capsule>(self)
+                                                                : capsule(self);
+                chain = (detail::function_record *) rec_capsule;
+                /* Never append a method to an overload chain of a parent class;
+                   instead, hide the parent's overloads in this case */
+                if (!chain->scope.is(rec->scope)) {
                     chain = nullptr;
-                } else {
-                    auto rec_capsule = reinterpret_borrow<capsule>(self);
-                    if (detail::is_function_record_capsule(rec_capsule)) {
-                        chain = rec_capsule.get_pointer<detail::function_record>();
-                        /* Never append a method to an overload chain of a parent class;
-                           instead, hide the parent's overloads in this case */
-                        if (!chain->scope.is(rec->scope)) {
-                            chain = nullptr;
-                        }
-                    } else {
-                        chain = nullptr;
-                    }
                 }
             }
             // Don't trigger for things like the default __init__, which are wrapper_descriptors
@@ -508,7 +495,6 @@ protected:
             rec->def->ml_flags = METH_VARARGS | METH_KEYWORDS;
 
             capsule rec_capsule(unique_rec.release(),
-                                detail::get_function_record_capsule_name(),
                                 [](void *ptr) { destruct((detail::function_record *) ptr); });
             guarded_strdup.release();
 
@@ -675,13 +661,10 @@ protected:
     /// Main dispatch logic for calls to functions bound using pybind11
     static PyObject *dispatcher(PyObject *self, PyObject *args_in, PyObject *kwargs_in) {
         using namespace detail;
-        assert(isinstance<capsule>(self));
 
         /* Iterator over the list of potentially admissible overloads */
-        const function_record *overloads = reinterpret_cast<function_record *>(
-                                  PyCapsule_GetPointer(self, get_function_record_capsule_name())),
+        const function_record *overloads = (function_record *) PyCapsule_GetPointer(self, nullptr),
                               *it = overloads;
-        assert(overloads != nullptr);
 
         /* Need to know how many arguments + keyword arguments there are to pick the right
            overload */
@@ -1433,9 +1416,9 @@ template <typename T, enable_if_t<has_operator_delete<T>::value, int> = 0>
 void call_operator_delete(T *p, size_t, size_t) {
     T::operator delete(p);
 }
-template <typename T,
-          enable_if_t<!has_operator_delete<T>::value && has_operator_delete_size<T>::value, int>
-          = 0>
+template <
+    typename T,
+    enable_if_t<!has_operator_delete<T>::value && has_operator_delete_size<T>::value, int> = 0>
 void call_operator_delete(T *p, size_t s, size_t) {
     T::operator delete(p, s);
 }
@@ -1595,14 +1578,14 @@ public:
         return *this;
     }
 
-    template <typename T, typename... Extra, detail::enable_if_t<T::op_enable_if_hook, int> = 0>
-    class_ &def(const T &op, const Extra &...extra) {
+    template <detail::op_id id, detail::op_type ot, typename L, typename R, typename... Extra>
+    class_ &def(const detail::op_<id, ot, L, R> &op, const Extra &...extra) {
         op.execute(*this, extra...);
         return *this;
     }
 
-    template <typename T, typename... Extra, detail::enable_if_t<T::op_enable_if_hook, int> = 0>
-    class_ &def_cast(const T &op, const Extra &...extra) {
+    template <detail::op_id id, detail::op_type ot, typename L, typename R, typename... Extra>
+    class_ &def_cast(const detail::op_<id, ot, L, R> &op, const Extra &...extra) {
         op.execute_cast(*this, extra...);
         return *this;
     }
@@ -1736,8 +1719,7 @@ public:
     template <typename Getter, typename Setter, typename... Extra>
     class_ &
     def_property(const char *name, const Getter &fget, const Setter &fset, const Extra &...extra) {
-        return def_property(
-            name, fget, cpp_function(method_adaptor<type>(fset), is_setter()), extra...);
+        return def_property(name, fget, cpp_function(method_adaptor<type>(fset)), extra...);
     }
     template <typename Getter, typename... Extra>
     class_ &def_property(const char *name,
@@ -1848,7 +1830,8 @@ private:
         if (holder_ptr) {
             init_holder_from_existing(v_h, holder_ptr, std::is_copy_constructible<holder_type>());
             v_h.set_holder_constructed();
-        } else if (detail::always_construct_holder<holder_type>::value || inst->owned) {
+        } else if (PYBIND11_SILENCE_MSVC_C4127(detail::always_construct_holder<holder_type>::value)
+                   || inst->owned) {
             new (std::addressof(v_h.holder<holder_type>())) holder_type(v_h.value_ptr<type>());
             v_h.set_holder_constructed();
         }
@@ -1888,22 +1871,9 @@ private:
 
     static detail::function_record *get_function_record(handle h) {
         h = detail::get_function(h);
-        if (!h) {
-            return nullptr;
-        }
-
-        handle func_self = PyCFunction_GET_SELF(h.ptr());
-        if (!func_self) {
-            throw error_already_set();
-        }
-        if (!isinstance<capsule>(func_self)) {
-            return nullptr;
-        }
-        auto cap = reinterpret_borrow<capsule>(func_self);
-        if (!detail::is_function_record_capsule(cap)) {
-            return nullptr;
-        }
-        return cap.get_pointer<detail::function_record>();
+        return h ? (detail::function_record *) reinterpret_borrow<capsule>(
+                   PyCFunction_GET_SELF(h.ptr()))
+                 : nullptr;
     }
 };
 
@@ -1980,35 +1950,29 @@ struct enum_base {
             name("name"),
             is_method(m_base));
 
-        if (options::show_enum_members_docstring()) {
-            m_base.attr("__doc__") = static_property(
-                cpp_function(
-                    [](handle arg) -> std::string {
-                        std::string docstring;
-                        dict entries = arg.attr("__entries");
-                        if (((PyTypeObject *) arg.ptr())->tp_doc) {
-                            docstring += std::string(
-                                reinterpret_cast<PyTypeObject *>(arg.ptr())->tp_doc);
-                            docstring += "\n\n";
+        m_base.attr("__doc__") = static_property(
+            cpp_function(
+                [](handle arg) -> std::string {
+                    std::string docstring;
+                    dict entries = arg.attr("__entries");
+                    if (((PyTypeObject *) arg.ptr())->tp_doc) {
+                        docstring += std::string(((PyTypeObject *) arg.ptr())->tp_doc) + "\n\n";
+                    }
+                    docstring += "Members:";
+                    for (auto kv : entries) {
+                        auto key = std::string(pybind11::str(kv.first));
+                        auto comment = kv.second[int_(1)];
+                        docstring += "\n\n  " + key;
+                        if (!comment.is_none()) {
+                            docstring += " : " + (std::string) pybind11::str(comment);
                         }
-                        docstring += "Members:";
-                        for (auto kv : entries) {
-                            auto key = std::string(pybind11::str(kv.first));
-                            auto comment = kv.second[int_(1)];
-                            docstring += "\n\n  ";
-                            docstring += key;
-                            if (!comment.is_none()) {
-                                docstring += " : ";
-                                docstring += pybind11::str(comment).cast<std::string>();
-                            }
-                        }
-                        return docstring;
-                    },
-                    name("__doc__")),
-                none(),
-                none(),
-                "");
-        }
+                    }
+                    return docstring;
+                },
+                name("__doc__")),
+            none(),
+            none(),
+            "");
 
         m_base.attr("__members__") = static_property(cpp_function(
                                                          [](handle arg) -> dict {
@@ -2109,7 +2073,7 @@ struct enum_base {
                               + "\" already exists!");
         }
 
-        entries[name] = pybind11::make_tuple(value, doc);
+        entries[name] = std::make_pair(value, doc);
         m_base.attr(std::move(name)) = std::move(value);
     }
 
@@ -2369,7 +2333,7 @@ template <typename Access,
           typename Sentinel,
           typename ValueType,
           typename... Extra>
-iterator make_iterator_impl(Iterator first, Sentinel last, Extra &&...extra) {
+iterator make_iterator_impl(Iterator &&first, Sentinel &&last, Extra &&...extra) {
     using state = detail::iterator_state<Access, Policy, Iterator, Sentinel, ValueType, Extra...>;
     // TODO: state captures only the types of Extra, not the values
 
@@ -2395,7 +2359,7 @@ iterator make_iterator_impl(Iterator first, Sentinel last, Extra &&...extra) {
                 Policy);
     }
 
-    return cast(state{first, last, true});
+    return cast(state{std::forward<Iterator>(first), std::forward<Sentinel>(last), true});
 }
 
 PYBIND11_NAMESPACE_END(detail)
@@ -2406,13 +2370,15 @@ template <return_value_policy Policy = return_value_policy::reference_internal,
           typename Sentinel,
           typename ValueType = typename detail::iterator_access<Iterator>::result_type,
           typename... Extra>
-iterator make_iterator(Iterator first, Sentinel last, Extra &&...extra) {
+iterator make_iterator(Iterator &&first, Sentinel &&last, Extra &&...extra) {
     return detail::make_iterator_impl<detail::iterator_access<Iterator>,
                                       Policy,
                                       Iterator,
                                       Sentinel,
                                       ValueType,
-                                      Extra...>(first, last, std::forward<Extra>(extra)...);
+                                      Extra...>(std::forward<Iterator>(first),
+                                                std::forward<Sentinel>(last),
+                                                std::forward<Extra>(extra)...);
 }
 
 /// Makes a python iterator over the keys (`.first`) of a iterator over pairs from a
@@ -2422,13 +2388,15 @@ template <return_value_policy Policy = return_value_policy::reference_internal,
           typename Sentinel,
           typename KeyType = typename detail::iterator_key_access<Iterator>::result_type,
           typename... Extra>
-iterator make_key_iterator(Iterator first, Sentinel last, Extra &&...extra) {
+iterator make_key_iterator(Iterator &&first, Sentinel &&last, Extra &&...extra) {
     return detail::make_iterator_impl<detail::iterator_key_access<Iterator>,
                                       Policy,
                                       Iterator,
                                       Sentinel,
                                       KeyType,
-                                      Extra...>(first, last, std::forward<Extra>(extra)...);
+                                      Extra...>(std::forward<Iterator>(first),
+                                                std::forward<Sentinel>(last),
+                                                std::forward<Extra>(extra)...);
 }
 
 /// Makes a python iterator over the values (`.second`) of a iterator over pairs from a
@@ -2438,13 +2406,15 @@ template <return_value_policy Policy = return_value_policy::reference_internal,
           typename Sentinel,
           typename ValueType = typename detail::iterator_value_access<Iterator>::result_type,
           typename... Extra>
-iterator make_value_iterator(Iterator first, Sentinel last, Extra &&...extra) {
+iterator make_value_iterator(Iterator &&first, Sentinel &&last, Extra &&...extra) {
     return detail::make_iterator_impl<detail::iterator_value_access<Iterator>,
                                       Policy,
                                       Iterator,
                                       Sentinel,
                                       ValueType,
-                                      Extra...>(first, last, std::forward<Extra>(extra)...);
+                                      Extra...>(std::forward<Iterator>(first),
+                                                std::forward<Sentinel>(last),
+                                                std::forward<Extra>(extra)...);
 }
 
 /// Makes an iterator over values of an stl container or other container supporting
@@ -2888,3 +2858,7 @@ inline function get_overload(const T *this_ptr, const char *name) {
     PYBIND11_OVERRIDE_PURE(PYBIND11_TYPE(ret_type), PYBIND11_TYPE(cname), fn, __VA_ARGS__);
 
 PYBIND11_NAMESPACE_END(PYBIND11_NAMESPACE)
+
+#if defined(__GNUC__) && __GNUC__ == 7
+#    pragma GCC diagnostic pop // -Wnoexcept-type
+#endif
