@@ -136,9 +136,10 @@ namespace gtsam {
      */
     Vector& at(Key j) {
       iterator item = find(j);
-      if (item == end())
-        throw std::out_of_range(
-        "Requested variable '" + DefaultKeyFormatter(j) + "' is not in this VectorValues.");
+      if (item == end()) {
+          throw std::out_of_range(
+                  "Requested variable '" + DefaultKeyFormatter(j) + "' is not in this VectorValues.");
+      }
       else
         return item->second;
     }
@@ -149,9 +150,10 @@ namespace gtsam {
      */
     const Vector& at(Key j) const {
       const_iterator item = find(j);
-      if (item == end())
-        throw std::out_of_range(
-        "Requested variable '" + DefaultKeyFormatter(j) + "' is not in this VectorValues.");
+      if (item == end()) {
+          throw std::out_of_range(
+                  "Requested variable '" + DefaultKeyFormatter(j) + "' is not in this VectorValues.");
+      }
       else
         return item->second;
     }
@@ -214,10 +216,11 @@ namespace gtsam {
 
     /** Erase the vector with the given key, or throw std::out_of_range if it does not exist */
     void erase(Key var) {
-      if (values_.unsafe_erase(var) == 0)
-        throw std::invalid_argument("Requested variable '" +
-                                    DefaultKeyFormatter(var) +
-                                    "', is not in this VectorValues.");
+      if (values_.unsafe_erase(var) == 0) {
+          throw std::invalid_argument("Requested variable '" +
+                                      DefaultKeyFormatter(var) +
+                                      "', is not in this VectorValues.");
+      }
     }
 
     /** Set all values to zero vectors. */
@@ -262,20 +265,28 @@ namespace gtsam {
     Vector vector(const CONTAINER& keys) const {
       DenseIndex totalDim = 0;
       FastVector<const Vector*> items;
-      items.reserve(keys.end() - keys.begin());
+      //items.reserve(keys.end() - keys.begin());
       for (Key key : keys) {
-        const Vector* v = &at(key);
-        totalDim += v->size();
-        items.push_back(v);
+          if(exists(key))
+          {
+              const Vector* v = &at(key);
+              totalDim += v->size();
+              items.push_back(v);
+          }
+          else
+          {
+              std::cout << "**************************************************************************************************************"<< std::endl;
+              std::cout << "VectorValue: key" << _defaultKeyFormatter(key) << " does not exist in vector values!" << std::endl;
+          }
       }
-
+        //std::cout << "here 2?" << std::endl;
       Vector result(totalDim);
       DenseIndex pos = 0;
       for (const Vector* v : items) {
         result.segment(pos, v->size()) = *v;
         pos += v->size();
       }
-
+        //std::cout << "here 3?" << std::endl;
       return result;
     }
 

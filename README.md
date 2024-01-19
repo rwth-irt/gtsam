@@ -1,13 +1,5 @@
 # README - Georgia Tech Smoothing and Mapping Library
----
 
-## Adapted branch based on v4.2.0 for gnssFGO.
-
-### Major changes:
-1. adding general factor information (attributes), e.g., name, ids
-2. adding virtual methods to get factor attributes
-
----
 **Important Note**
 
 As of Dec 2021, the `develop` branch is officially in "Pre 4.2" mode. A great new feature we will be adding in 4.2 is *hybrid inference* a la DCSLAM (Kevin Doherty et al) and we envision several API-breaking changes will happen in the discrete folder.

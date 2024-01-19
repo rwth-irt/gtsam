@@ -178,7 +178,6 @@ namespace gtsam {
       result.emplace(*frontal, solution.segment(vectorPosition, getDim(frontal)));
       vectorPosition += getDim(frontal);
     }
-
     return result;
   }
 

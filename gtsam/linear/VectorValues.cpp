@@ -104,6 +104,13 @@ namespace gtsam {
     for(const KeyValuePair& key_value: values)
     {
       // Use this trick to find the value using a hint, since we are inserting from another sorted map
+
+      if(!exists(key_value.first))
+      {
+          std::cout << "VectorValues Update: key " << _defaultKeyFormatter(key_value.first) << " does not exist!" << std::endl;
+          continue;
+      }
+
       size_t oldSize = values_.size();
       hint = values_.insert(hint, key_value);
       if(values_.size() > oldSize) {
@@ -197,8 +204,8 @@ namespace gtsam {
     Vector result(totalDim);
     size_t j = 0;
     for(const Dims::value_type& it: keys) {
-      result.segment(j,it.second) = at(it.first);
-      j += it.second;
+       result.segment(j,it.second) = at(it.first);
+       j += it.second;
     }
     return result;
   }

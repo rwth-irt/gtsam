@@ -114,7 +114,6 @@ void ISAM2::recalculate(const ISAM2UpdateParams& updateParams,
                         const KeySet& relinKeys, ISAM2Result* result) {
   gttic(recalculate);
   UpdateImpl::LogRecalculateKeys(*result);
-    ///  std::cout << "8.1" << std::endl;
   if (!result->markedKeys.empty() || !result->observedKeys.empty()) {
     // Remove top of Bayes tree and convert to a factor graph:
     // (a) For each affected variable, remove the corresponding clique and all
@@ -125,7 +124,6 @@ void ISAM2::recalculate(const ISAM2UpdateParams& updateParams,
     this->removeTop(
         KeyVector(result->markedKeys.begin(), result->markedKeys.end()),
         &affectedBayesNet, &orphans);
-   // std::cout << "8.2" << std::endl;
     // FactorGraph<GaussianFactor> factors(affectedBayesNet);
     // bug was here: we cannot reuse the original factors, because then the
     // cached factors get messed up [all the necessary data is actually
@@ -147,7 +145,6 @@ void ISAM2::recalculate(const ISAM2UpdateParams& updateParams,
       affectedKeys.insert(affectedKeys.end(), conditional->beginFrontals(),
                           conditional->endFrontals());
     gttoc(affectedKeys);
-   // std::cout << "8.3" << std::endl;
     KeySet affectedKeysSet;
     static const double kBatchThreshold = 0.65;
     if (affectedKeys.size() >= theta_.size() * kBatchThreshold) {
@@ -157,17 +154,14 @@ void ISAM2::recalculate(const ISAM2UpdateParams& updateParams,
       recalculateIncremental(updateParams, relinKeys, affectedKeys,
                              &affectedKeysSet, &orphans, result);
     }
-    //std::cout << "8.4" << std::endl;
     // Root clique variables for detailed results
     if (result->detail && params_.enableDetailedResults) {
       for (const auto& root : roots_)
         for (Key var : *root->conditional())
           result->detail->variableStatus[var].inRootClique = true;
     }
-   // std::cout << "8.5" << std::endl;
     // Update replaced keys mask (accumulates until back-substitution happens)
     deltaReplacedMask_.insert(affectedKeysSet.begin(), affectedKeysSet.end());
-    //std::cout << "8.6" << std::endl;
   }
 }
 
@@ -420,37 +414,30 @@ ISAM2Result ISAM2::update(const NonlinearFactorGraph& newFactors,
   UpdateImpl::LogStartingUpdate(newFactors, *this);
   ISAM2Result result(params_.enableDetailedResults);
   UpdateImpl update(params_, updateParams);
-  //std::cout << "1" << std::endl;
   // Update delta if we need it to check relinearization later
   if (update.relinarizationNeeded(update_count_))
     updateDelta(updateParams.forceFullSolve);
 
-      //std::cout << "2" << std::endl;
   // 1. Add any new factors \Factors:=\Factors\cup\Factors'.
   update.pushBackFactors(newFactors, &nonlinearFactors_, &linearFactors_,
                          &variableIndex_, &result.newFactorsIndices,
                          &result.keysWithRemovedFactors);
 
-     // std::cout << "3" << std::endl;
   update.computeUnusedKeys(newFactors, variableIndex_,
                            result.keysWithRemovedFactors, &result.unusedKeys);
 
-      //std::cout << "4" << std::endl;
   // 2. Initialize any new variables \Theta_{new} and add
   // \Theta:=\Theta\cup\Theta_{new}.
   addVariables(newTheta, result.details());
   if (params_.evaluateNonlinearError)
     update.error(nonlinearFactors_, calculateEstimate(), &result.errorBefore);
 
-     // std::cout << "5" << std::endl;
   // 3. Mark linear update
   update.gatherInvolvedKeys(newFactors, nonlinearFactors_,
                             result.keysWithRemovedFactors, &result.markedKeys);
 
-     // std::cout << "6" << std::endl;
   update.updateKeys(result.markedKeys, &result);
 
-     // std::cout << "7" << std::endl;
   KeySet relinKeys;
   result.variablesRelinearized = 0;
   if (update.relinarizationNeeded(update_count_)) {
@@ -468,22 +455,20 @@ ISAM2Result ISAM2::update(const NonlinearFactorGraph& newFactors,
     result.variablesRelinearized = result.markedKeys.size();
   }
 
-      //std::cout << "7" << std::endl;
   // 7. Linearize new factors
   update.linearizeNewFactors(newFactors, theta_, nonlinearFactors_.size(),
                              result.newFactorsIndices, &linearFactors_);
   update.augmentVariableIndex(newFactors, result.newFactorsIndices,
                               &variableIndex_);
 
-      //std::cout << "8" << std::endl;
   // 8. Redo top of Bayes tree and update data structures
   recalculate(updateParams, relinKeys, &result);
   if (!result.unusedKeys.empty()) removeVariables(result.unusedKeys);
   result.cliques = this->nodes().size();
-      //std::cout << "9" << std::endl;
+
   if (params_.evaluateNonlinearError)
     update.error(nonlinearFactors_, calculateEstimate(), &result.errorAfter);
-      //std::cout << "10" << std::endl;
+
   return result;
 }
 
@@ -713,6 +698,7 @@ void ISAM2::marginalizeLeaves(
 void ISAM2::updateDelta(bool forceFullSolve) const {
   gttic(updateDelta);
   if (params_.optimizationParams.type() == typeid(ISAM2GaussNewtonParams)) {
+
     // If using Gauss-Newton, update with wildfireThreshold
     const ISAM2GaussNewtonParams& gaussNewtonParams =
         boost::get<ISAM2GaussNewtonParams>(params_.optimizationParams);
@@ -739,14 +725,12 @@ void ISAM2::updateDelta(bool forceFullSolve) const {
     DeltaImpl::UpdateGaussNewtonDelta(
         roots_, deltaReplacedMask_, effectiveWildfireThreshold, &deltaNewton_);
     gttoc(Wildfire_update);
-
     // Compute steepest descent step
     const VectorValues gradAtZero = this->gradientAtZero();  // Compute gradient
     DeltaImpl::UpdateRgProd(roots_, deltaReplacedMask_, gradAtZero,
                             &RgProd_);  // Update RgProd
     const VectorValues dx_u = DeltaImpl::ComputeGradientSearch(
         gradAtZero, RgProd_);  // Compute gradient search point
-
     // Clear replaced keys mask because now we've updated deltaNewton_ and
     // RgProd_
     deltaReplacedMask_.clear();
@@ -758,7 +742,6 @@ void ISAM2::updateDelta(bool forceFullSolve) const {
             *this, nonlinearFactors_, theta_, nonlinearFactors_.error(theta_),
             doglegParams.verbose));
     gttoc(Dogleg_Iterate);
-
     gttic(Copy_dx_d);
     // Update Delta and linear step
     doglegDelta_ = doglegResult.delta;
@@ -774,11 +757,8 @@ void ISAM2::updateDelta(bool forceFullSolve) const {
 /* ************************************************************************* */
 Values ISAM2::calculateEstimate() const {
   gttic(ISAM2_calculateEstimate);
-    //std::cout << "getDelta " <<std::endl;
-
   const VectorValues& delta(getDelta());
   gttic(Expmap);
-      //std::cout << "retract " <<std::endl;
   return theta_.retract(delta);
   gttoc(Expmap);
 }
@@ -804,7 +784,10 @@ Matrix ISAM2::marginalCovariance(Key key) const {
 
 /* ************************************************************************* */
 const VectorValues& ISAM2::getDelta() const {
-  if (!deltaReplacedMask_.empty()) updateDelta();
+
+  if (!deltaReplacedMask_.empty()) {
+      updateDelta();
+  }
   return delta_;
 }
 
