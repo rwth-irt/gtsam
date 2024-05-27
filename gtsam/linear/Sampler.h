@@ -18,8 +18,9 @@
 
 #pragma once
 
+#include <gtsam/nonlinear/Values.h>
 #include <gtsam/linear/NoiseModel.h>
-
+//#include <gtsam/nonlinear/Marginals.h>
 #include <random>
 
 namespace gtsam {
@@ -31,7 +32,9 @@ namespace gtsam {
 class GTSAM_EXPORT Sampler {
  protected:
   /** noiseModel created at generation */
-  noiseModel::Diagonal::shared_ptr model_;
+  noiseModel::Base::shared_ptr model_;
+  Vector mean_;
+
 
   /** generator */
   mutable std::mt19937_64 generator_;
@@ -41,6 +44,7 @@ class GTSAM_EXPORT Sampler {
 
   /// @name constructors
   /// @{
+  ~Sampler() = default;
 
   /**
    * Create a sampler for the distribution specified by a diagonal NoiseModel
@@ -48,7 +52,11 @@ class GTSAM_EXPORT Sampler {
    *
    * NOTE: do not use zero as a seed, it will break the generator
    */
-  explicit Sampler(const noiseModel::Diagonal::shared_ptr& model,
+  explicit Sampler(const noiseModel::Base::shared_ptr& model,
+                   uint_fast64_t seed = 42u);
+
+  explicit Sampler(const Vector &mean,
+                   const noiseModel::Base::shared_ptr& model,
                    uint_fast64_t seed = 42u);
 
   /**
@@ -59,6 +67,9 @@ class GTSAM_EXPORT Sampler {
    */
   explicit Sampler(const Vector& sigmas, uint_fast64_t seed = 42u);
 
+
+  explicit Sampler(const Vector &mean, const Vector& sigmas, uint_fast64_t seed = 42u);
+
   /// @}
   /// @name access functions
   /// @{
@@ -67,14 +78,19 @@ class GTSAM_EXPORT Sampler {
 
   Vector sigmas() const { return model_->sigmas(); }
 
-  const noiseModel::Diagonal::shared_ptr& model() const { return model_; }
+  void setMean(const Vector &mean) {mean_ = mean;}
+  void setNoiseModel(noiseModel::Base::shared_ptr& model) {model_ = model;}
+  void setNoiseModel(const Vector& sigmas) {model_ = noiseModel::Diagonal::Sigmas(sigmas, true);};
+  const Vector mean() const {return mean_;}
+
+  const noiseModel::Base::shared_ptr& model() const { return model_; }
 
   /// @}
   /// @name basic functionality
   /// @{
 
   /// sample from distribution
-  Vector sample() const;
+  virtual Vector sample() const;
 
   /// sample with given random number generator
   static Vector sampleDiagonal(const Vector& sigmas, std::mt19937_64* rng);

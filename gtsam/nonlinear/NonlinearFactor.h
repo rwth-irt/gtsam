@@ -25,7 +25,6 @@
 #include <gtsam/linear/JacobianFactor.h>
 #include <gtsam/inference/Factor.h>
 #include <gtsam/base/OptionalJacobian.h>
-
 #include <boost/serialization/base_object.hpp>
 #include <boost/assign/list_of.hpp>
 
@@ -65,6 +64,7 @@ public:
   NonlinearFactor(const CONTAINER& keys) :
     Base(keys) {}
 
+
   /// @}
   /// @name Testable
   /// @{
@@ -72,6 +72,20 @@ public:
   /** print */
   void print(const std::string& s = "", const KeyFormatter& keyFormatter =
                                             DefaultKeyFormatter) const override;
+
+  /** lifting all related state values in a vector after the ordering for evaluateError **/
+  virtual Vector liftValuesAsVector(const gtsam::Values &values)
+  {
+      std::cout << "Factor " << getName() << " does not implement liftValuesAsVector!" << std::endl;
+      return gtsam::Vector();
+  }
+
+  virtual Values generateValuesFromStateVector(const gtsam::Vector &state)
+  {
+      std::cout << "Factor " << getName() << " does not implement generateValuesFromStateVector!" << std::endl;
+      return gtsam::Values();
+  }
+
 
   /** Check if two factors are equal */
   virtual bool equals(const NonlinearFactor& f, double tol = 1e-9) const;

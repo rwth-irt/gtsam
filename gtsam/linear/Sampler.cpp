@@ -17,10 +17,11 @@
  */
 
 #include <gtsam/linear/Sampler.h>
+
 namespace gtsam {
 
 /* ************************************************************************* */
-Sampler::Sampler(const noiseModel::Diagonal::shared_ptr& model,
+Sampler::Sampler(const noiseModel::Base::shared_ptr& model,
                  uint_fast64_t seed)
     : model_(model), generator_(seed) {
   if (!model) {
@@ -29,8 +30,21 @@ Sampler::Sampler(const noiseModel::Diagonal::shared_ptr& model,
 }
 
 /* ************************************************************************* */
+Sampler::Sampler(const Vector &mean, const noiseModel::Base::shared_ptr &model, uint_fast64_t seed)
+    : model_(model), mean_(mean), generator_(seed)
+{
+    if (!model) {
+        throw std::invalid_argument("Sampler::Sampler needs a non-null model.");
+    }
+}
+
+/* ************************************************************************* */
 Sampler::Sampler(const Vector& sigmas, uint_fast64_t seed)
     : model_(noiseModel::Diagonal::Sigmas(sigmas, true)), generator_(seed) {}
+
+/* ************************************************************************* */
+Sampler::Sampler(const Vector &mean, const Vector &sigmas, uint_fast64_t seed)
+    : model_(noiseModel::Diagonal::Sigmas(sigmas, true)), mean_(mean), generator_(seed) {}
 
 /* ************************************************************************* */
 Vector Sampler::sampleDiagonal(const Vector& sigmas, std::mt19937_64* rng) {
@@ -47,6 +61,7 @@ Vector Sampler::sampleDiagonal(const Vector& sigmas, std::mt19937_64* rng) {
       result(i) = dist(*rng);
     }
   }
+
   return result;
 }
 
