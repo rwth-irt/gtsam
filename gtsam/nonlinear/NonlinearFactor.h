@@ -88,7 +88,7 @@ public:
 
   virtual std::vector<gtsam::Matrix> initializeJacobianMatrices()
   {
-    std::cout << "Factor " << getName() << " does not implement initializeJacobianMatrice!" << std::endl;
+    //std::cout << "Factor " << getName() << " does not implement initializeJacobianMatrice!" << std::endl;
     return {};
   }
 
