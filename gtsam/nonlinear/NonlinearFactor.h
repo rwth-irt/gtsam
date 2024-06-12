@@ -86,6 +86,12 @@ public:
       return gtsam::Values();
   }
 
+  virtual std::vector<gtsam::Matrix> initializeJacobianMatrices()
+  {
+    std::cout << "Factor " << getName() << " does not implement initializeJacobianMatrice!" << std::endl;
+    return {};
+  }
+
 
   /** Check if two factors are equal */
   virtual bool equals(const NonlinearFactor& f, double tol = 1e-9) const;
